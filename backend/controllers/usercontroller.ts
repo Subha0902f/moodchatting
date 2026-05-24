@@ -1,4 +1,5 @@
-import { createCrudController, createHttpError, sendRouteError } from "../routes/routeUtils";
+import { createHttpError, sendRouteError } from "../routes/routeUtils";
+import { createCrudController } from "./createCrudController";
 
 export const userController = createCrudController("User", [
   {

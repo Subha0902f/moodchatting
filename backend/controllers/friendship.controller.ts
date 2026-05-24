@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
+import { User } from "../types/user.types";
 import FriendModel from "../models/friendModel";
 import { createHttpError, sendRouteError } from "../routes/routeUtils";
 
 // A more type-safe request object
 interface RequestWithUser extends Request {
-  user?: { id: string; [key: string]: any };
+  user?: User;
 }
 
 const DEMO_USER_ID = "c91f2c3a-5c3c-4c3c-8c3c-3c3c3c3c3c3c";

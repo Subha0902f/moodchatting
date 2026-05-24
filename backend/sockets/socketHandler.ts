@@ -29,7 +29,7 @@ import {
   SocketData,
   ChatRoom,
   DatabaseMessage,
-  ServerEvents,
+  ServerEventNames,
 } from '../types/socket.types';
 
 // ─── Socket State Management ──────────────────────────────────────────────────
@@ -141,7 +141,7 @@ const getOnlineUsersInRoom = (chatId: string): OnlineUser[] => {
  */
 const broadcastOnlineUsers = (io: Server, chatId: string): void => {
   const onlineUsers = getOnlineUsersInRoom(chatId);
-  io.to(chatId).emit(ServerEvents.ONLINE_USERS, onlineUsers);
+  io.to(chatId).emit(ServerEventNames.ONLINE_USERS, onlineUsers);
 };
 
 /**
@@ -156,7 +156,7 @@ const broadcastPresence = (
   chatId: string,
   update: UserPresenceUpdate
 ): void => {
-  io.to(chatId).emit(ServerEvents.USER_PRESENCE, update);
+  io.to(chatId).emit(ServerEventNames.USER_PRESENCE, update);
 };
 
 // ─── Database Operations ──────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ const handleConnection = async (io: Server, socket: Socket): Promise<void> => {
 
   if (!token) {
     console.log(`❌ Socket ${socket.id} rejected: No token provided`);
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Authentication required. Please provide a valid token.',
     });
@@ -246,7 +246,7 @@ const handleConnection = async (io: Server, socket: Socket): Promise<void> => {
 
   if (!userData) {
     console.log(`❌ Socket ${socket.id} rejected: Invalid token`);
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Invalid or expired token. Please log in again.',
     });
@@ -288,7 +288,7 @@ const handleConnection = async (io: Server, socket: Socket): Promise<void> => {
   socketState.onlineUsers.set(userData.id, onlineUser);
 
   // Notify user of successful connection
-  socket.emit(ServerEvents.USER_CONNECTED, {
+  socket.emit(ServerEventNames.USER_CONNECTED, {
     success: true,
     message: 'Connected successfully',
     data: {
@@ -330,7 +330,7 @@ const handleJoinChat = (io: Server, socket: Socket, payload: { chatId: string })
   const { chatId } = payload;
 
   if (!chatId || typeof chatId !== 'string') {
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Invalid chat ID provided',
     });
@@ -339,7 +339,7 @@ const handleJoinChat = (io: Server, socket: Socket, payload: { chatId: string })
 
   const userId = socket.data?.userId;
   if (!userId) {
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Not authenticated',
     });
@@ -362,7 +362,7 @@ const handleJoinChat = (io: Server, socket: Socket, payload: { chatId: string })
   console.log(`💬 User ${userId} joined chat room ${chatId}`);
 
   // Send confirmation to the user
-  socket.emit(ServerEvents.USER_CONNECTED, {
+  socket.emit(ServerEventNames.USER_CONNECTED, {
     success: true,
     message: `Joined chat room ${chatId}`,
     data: {
@@ -429,7 +429,7 @@ const handleSendMessage = async (
   const { chatId, message, mode } = payload;
 
   if (!chatId || !message) {
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Chat ID and message are required',
     });
@@ -438,7 +438,7 @@ const handleSendMessage = async (
 
   const userId = socket.data?.userId;
   if (!userId) {
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Not authenticated',
     });
@@ -458,7 +458,7 @@ const handleSendMessage = async (
   const savedMessage = await saveMessageToDatabase(messageData);
 
   if (!savedMessage) {
-    socket.emit(ServerEvents.ERROR, {
+    socket.emit(ServerEventNames.ERROR, {
       success: false,
       error: 'Failed to save message',
     });
@@ -479,7 +479,7 @@ const handleSendMessage = async (
   };
 
   // Broadcast to all users in the chat room (including sender)
-  io.to(chatId).emit(ServerEvents.RECEIVE_MESSAGE, receivedMessage);
+  io.to(chatId).emit(ServerEventNames.RECEIVE_MESSAGE, receivedMessage);
 
   console.log(`📝 Message sent in chat ${chatId} by user ${userId}`);
 };
@@ -504,7 +504,7 @@ const handleTypingStart = (_io: Server, socket: Socket, payload: TypingPayload):
   }
 
   // Broadcast typing indicator to others in the room
-  socket.to(chatId).emit(ServerEvents.TYPING_UPDATE, {
+  socket.to(chatId).emit(ServerEventNames.TYPING_UPDATE, {
     chatId,
     userId,
     userName: userName || socket.data?.fullName || 'Someone',
@@ -533,7 +533,7 @@ const handleTypingStop = (_io: Server, socket: Socket, payload: TypingPayload): 
   }
 
   // Broadcast typing stop to others in the room
-  socket.to(chatId).emit(ServerEvents.TYPING_UPDATE, {
+  socket.to(chatId).emit(ServerEventNames.TYPING_UPDATE, {
     chatId,
     userId,
     isTyping: false,
@@ -627,7 +627,7 @@ export const sendReminderNotification = (
 
   // Send to all of user's socket connections
   userSockets.forEach((socketId) => {
-    io.to(socketId).emit(ServerEvents.REMINDER_NOTIFICATION, payload);
+    io.to(socketId).emit(ServerEventNames.REMINDER_NOTIFICATION, payload);
   });
 
   console.log(`🔔 Reminder sent to user ${userId}: ${payload.title}`);
@@ -774,7 +774,7 @@ export const initializeSocket = (io: Server): void => {
     socket.on('get_online_users', (payload: { chatId: string }) => {
       const { chatId } = payload;
       const onlineUsers = getOnlineUsersInRoom(chatId);
-      socket.emit(ServerEvents.ONLINE_USERS, onlineUsers);
+      socket.emit(ServerEventNames.ONLINE_USERS, onlineUsers);
     });
 
     // Handle disconnection

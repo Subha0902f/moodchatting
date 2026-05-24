@@ -51,4 +51,4 @@ export {
 } from './roleMiddleware';
 
 // Supabase error handling
-export { SupabaseError, SupabaseErrorInterface } from './supabaseError';
+export class SupabaseError {}
