@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
+import { supabase } from "./supabaseclient";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -10,9 +11,17 @@ const apiClient: AxiosInstance = axios.create({
   timeout: 120000,
 });
 
-const getAuthToken = () => {
+const getStoredAuthToken = () => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("authToken");
+};
+
+const getAuthToken = async () => {
+  const storedToken = getStoredAuthToken();
+  if (storedToken) return storedToken;
+
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 };
 
 export const setAuthToken = (token: string | null) => {
@@ -25,8 +34,8 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
-apiClient.interceptors.request.use((config: any) => {
-  const token = getAuthToken();
+apiClient.interceptors.request.use(async (config: any) => {
+  const token = await getAuthToken();
   if (token) {
     config.headers = {
       ...config.headers,
@@ -109,6 +118,26 @@ export const ModeAPI = {
 export const BlogAPI = {
   list: () => apiClient.get("/blog"),
   get: (postId: string | number) => apiClient.get(`/blog/${postId}`),
+  create: (payload: {
+    title: string;
+    content: string;
+    preview: string;
+    type: "free" | "paid";
+    status: "draft" | "published" | "archived";
+    tags: string[];
+    read_time: number;
+  }) => apiClient.post("/blog", payload),
+  save: (postId: string | number) => apiClient.post(`/blog/${postId}/save`),
+  unsave: (postId: string | number) => apiClient.delete(`/blog/${postId}/unsave`),
+  saved: () => apiClient.get("/blog/saved"),
+};
+
+export const NoteAPI = {
+  list: (params?: { search?: string }) => apiClient.get("/notes", { params }),
+  create: (payload: { title: string; content?: string }) => apiClient.post("/notes", payload),
+  update: (noteId: string, payload: { title?: string; content?: string }) =>
+    apiClient.put(`/notes/${noteId}`, payload),
+  delete: (noteId: string) => apiClient.delete(`/notes/${noteId}`),
 };
 
 export default apiClient;

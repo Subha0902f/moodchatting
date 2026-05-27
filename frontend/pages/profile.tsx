@@ -180,13 +180,16 @@ export default function ProfilePage() {
       return;
     }
 
-    getProfile(user.id)
-      .then(({ data }) => {
+    const loadProfile = async () => {
+      try {
+        const { data } = await getProfile(user.id);
         if (mounted) setRemoteProfile(data ?? null);
-      })
-      .catch(() => {
+      } catch {
         if (mounted) setRemoteProfile(null);
-      });
+      }
+    };
+
+    loadProfile();
 
     return () => {
       mounted = false;
@@ -230,7 +233,7 @@ export default function ProfilePage() {
 
   const handleCopy = () => {
     if (!p.profileLink) return;
-    navigator.clipboard?.writeText(p.profileLink).catch(() => {});
+    Promise.resolve(navigator.clipboard?.writeText(p.profileLink)).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

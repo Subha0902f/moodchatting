@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { NoteAPI } from "../services/api";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -105,6 +106,57 @@ const styles = `
   .create-btn:active { transform: translateY(0); }
 
   .create-btn svg { width: 14px; height: 14px; }
+
+  .search-wrap {
+    position: relative;
+    margin-top: 14px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    outline: none;
+    padding: 10px 34px 10px 34px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .search-input:focus {
+    border-color: rgba(198, 241, 53, 0.45);
+    box-shadow: 0 0 0 3px var(--lime-glow);
+  }
+
+  .search-input::placeholder { color: var(--muted); }
+
+  .search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .search-clear:hover { color: var(--lime); }
 
   .notes-count {
     font-family: 'Space Mono', monospace;
@@ -400,44 +452,60 @@ type Note = {
   updatedAt: Date;
 };
 
-const DEFAULT_NOTES: Note[] = [
-  {
-    id: "1",
-    title: "Welcome to NOTES",
-    content: "This is your minimal, distraction-free note-taking space.\n\nClick any note to open it, or hit CREATE NOTE to begin writing something new.",
-    updatedAt: new Date(),
-  },
-];
-
-function loadNotes() {
-  try {
-    const raw = localStorage.getItem("moodchat.notes");
-    if (!raw) return DEFAULT_NOTES;
-    const parsed = JSON.parse(raw) as Array<Omit<Note, "updatedAt"> & { updatedAt: string }>;
-    return parsed.map((note) => ({ ...note, updatedAt: new Date(note.updatedAt) }));
-  } catch {
-    return DEFAULT_NOTES;
-  }
-}
+const mapApiNote = (note: any): Note => ({
+  id: String(note.id),
+  title: note.title || "Untitled",
+  content: note.content || "",
+  updatedAt: new Date(note.updatedAt || note.updated_at || Date.now()),
+});
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function NoteSystem() {
-  const [notes, setNotes] = useState<Note[]>(loadNotes);
-  const [selectedId, setSelectedId] = useState<string | null>(() => loadNotes()[0]?.id ?? null);
-  const firstNote = notes.find((note) => note.id === selectedId) ?? notes[0];
-  const [editTitle, setEditTitle] = useState(firstNote?.title ?? "");
-  const [editContent, setEditContent] = useState(firstNote?.content ?? "");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   const selectedNote = notes.find((n) => n.id === selectedId);
 
+  const filteredNotes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return notes;
+
+    return notes.filter((note) =>
+      note.title.toLowerCase().includes(q) ||
+      note.content.toLowerCase().includes(q)
+    );
+  }, [notes, searchQuery]);
+
   useEffect(() => {
-    localStorage.setItem("moodchat.notes", JSON.stringify(notes));
-  }, [notes]);
+    let mounted = true;
+
+    NoteAPI.list()
+      .then((response) => {
+        if (!mounted) return;
+        const loadedNotes = (response.data?.data ?? []).map(mapApiNote);
+        setNotes(loadedNotes);
+        console.log(`[notes-ui] loaded ${loadedNotes.length} note(s)`);
+
+        if (loadedNotes.length > 0) {
+          openNote(loadedNotes[0]);
+        }
+      })
+      .catch((error) => {
+        console.error("[notes-ui] failed to load notes:", error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function openNote(note: Note) {
     setSelectedId(note.id);
@@ -446,44 +514,54 @@ export default function NoteSystem() {
     setIsDirty(false);
   }
 
-  function createNote() {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title: "",
-      content: "",
-      updatedAt: new Date(),
-    };
-    setNotes((prev) => [newNote, ...prev]);
-    setSelectedId(newNote.id);
-    setEditTitle("");
-    setEditContent("");
-    setIsDirty(false);
+  async function createNote() {
+    try {
+      const response = await NoteAPI.create({ title: "Untitled", content: "" });
+      const newNote = mapApiNote(response.data?.data);
+      setNotes((prev) => [newNote, ...prev]);
+      openNote(newNote);
+      console.log(`[notes-ui] created note ${newNote.id}`);
+    } catch (error) {
+      console.error("[notes-ui] create failed:", error);
+    }
   }
 
-  function saveNote() {
+  async function saveNote() {
     if (!selectedId) return;
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === selectedId
-          ? { ...n, title: editTitle || "Untitled", content: editContent, updatedAt: new Date() }
-          : n
-      )
-    );
-    setIsDirty(false);
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1500);
+    try {
+      const response = await NoteAPI.update(selectedId, {
+        title: editTitle || "Untitled",
+        content: editContent,
+      });
+      const savedNote = mapApiNote(response.data?.data);
+      setNotes((prev) =>
+        prev.map((n) => n.id === selectedId ? savedNote : n)
+      );
+      openNote(savedNote);
+      setSavedFlash(true);
+      console.log(`[notes-ui] saved note ${savedNote.id}`);
+      setTimeout(() => setSavedFlash(false), 1500);
+    } catch (error) {
+      console.error("[notes-ui] save failed:", error);
+    }
   }
 
-  function deleteNote() {
+  async function deleteNote() {
     if (!selectedId) return;
-    const remaining = notes.filter((n) => n.id !== selectedId);
-    setNotes(remaining);
-    if (remaining.length > 0) {
-      openNote(remaining[0]);
-    } else {
-      setSelectedId(null);
-      setEditTitle("");
-      setEditContent("");
+    try {
+      await NoteAPI.delete(selectedId);
+      const remaining = notes.filter((n) => n.id !== selectedId);
+      setNotes(remaining);
+      console.log(`[notes-ui] deleted note ${selectedId}`);
+      if (remaining.length > 0) {
+        openNote(remaining[0]);
+      } else {
+        setSelectedId(null);
+        setEditTitle("");
+        setEditContent("");
+      }
+    } catch (error) {
+      console.error("[notes-ui] delete failed:", error);
     }
   }
 
@@ -502,10 +580,26 @@ export default function NoteSystem() {
               </svg>
               Create Note
             </button>
+            <div className="search-wrap">
+              <span className="search-icon">⌕</span>
+              <input
+                className="search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search notes..."
+              />
+              {searchQuery && (
+                <button className="search-clear" type="button" onClick={() => setSearchQuery("")}>
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="notes-count">
-            {notes.length} note{notes.length !== 1 ? "s" : ""}
+            {searchQuery
+              ? `${filteredNotes.length} result${filteredNotes.length !== 1 ? "s" : ""}`
+              : `${notes.length} note${notes.length !== 1 ? "s" : ""}`}
           </div>
 
           <div className="notes-list">
@@ -522,8 +616,14 @@ export default function NoteSystem() {
                 <div className="empty-title">No notes yet</div>
                 <div className="empty-sub">Hit the button above to create your first note.</div>
               </div>
+            ) : filteredNotes.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">⌕</div>
+                <div className="empty-title">No matches</div>
+                <div className="empty-sub">Try a different title or phrase.</div>
+              </div>
             ) : (
-              notes.map((note) => (
+              filteredNotes.map((note) => (
                 <div
                   key={note.id}
                   className={`note-item ${selectedId === note.id ? "active" : ""}`}

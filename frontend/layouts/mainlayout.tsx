@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from "../context/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,7 +230,9 @@ const SideNavItem: React.FC<{
 /** Profile dropdown */
 const ProfileDropdown: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -245,6 +248,26 @@ const ProfileDropdown: React.FC = () => {
     { icon: <Icon.Settings />, label: "Settings", to: "/settings" },
     { icon: <Icon.Chart />,   label: "Analytics", to: "/dashboard" },
   ];
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+
+    setSigningOut(true);
+    const { error } = await signOut();
+    setSigningOut(false);
+
+    if (!error) {
+      setOpen(false);
+      navigate("/login", { replace: true });
+    }
+  };
+
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.user_metadata?.username ||
+    user?.email?.split("@")[0] ||
+    "MoodChat User";
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -264,7 +287,7 @@ const ProfileDropdown: React.FC = () => {
           display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
         }}>🧑</div>
         <div>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.2px" }}>Alex M.</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.2px" }}>{displayName}</div>
           <div style={{ fontSize: 10, color: T.muted, letterSpacing: "0.3px" }}>Pro Member</div>
         </div>
         <Icon.Caret />
@@ -300,16 +323,18 @@ const ProfileDropdown: React.FC = () => {
           ))}
           <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
           <div
+            onClick={handleSignOut}
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 12px", borderRadius: 9,
-              fontSize: 13, color: "#ff6b6b", cursor: "pointer",
+              fontSize: 13, color: "#ff6b6b", cursor: signingOut ? "wait" : "pointer",
+              opacity: signingOut ? 0.7 : 1,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <span style={{ color: "#ff6b6b" }}><Icon.Logout /></span>
-            Sign out
+            {signingOut ? "Signing out..." : "Sign out"}
           </div>
         </div>
       )}

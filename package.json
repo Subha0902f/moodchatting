@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx watch backend/server.ts",
+    "dev:backend": "tsx watch backend/server.ts",
+    "dev:frontend": "vite",
+    "start": "tsx backend/server.ts",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -41,6 +45,7 @@
     "eslint": "^10.2.1",
     "postcss": "^8.5.12",
     "prettier": "^3.8.3",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "tsx": "^4.22.3"
   }
 }

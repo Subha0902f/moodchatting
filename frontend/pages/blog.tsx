@@ -7,6 +7,7 @@ import React, {
   FC,
   ReactNode,
 } from "react";
+import { BlogAPI } from "../services/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ type BlogType = "free" | "paid";
 type TabKey   = "create" | "read";
 
 interface Blog {
-  id: number;
+  id: string;
   title: string;
   content: string;
   author: string;
@@ -55,7 +56,7 @@ const C = {
 
 const SEED_BLOGS: Blog[] = [
   {
-    id: 1,
+    id: "1",
     title: "A Quiet Way to Start the Day",
     content: "Some mornings do not need a dramatic reset. They need a glass of water, a clean page, and one honest sentence about how you feel.\n\nMoodChat is built around that kind of small check-in. Write the thought before it hardens into noise. Send the message before you overthink it. Keep the ritual light enough that you actually return to it.",
     author: "MoodChat",
@@ -68,7 +69,7 @@ const SEED_BLOGS: Blog[] = [
     readTime: "1 min",
   },
   {
-    id: 2,
+    id: "2",
     title: "Why Saved Notes Matter",
     content: "A note is not always an answer. Sometimes it is just a marker that says: this mattered enough to keep.\n\nThe best personal tools make it easy to catch those markers without turning them into chores. Save the fragment, name it later, and let your future self decide what it wants to become.",
     author: "Alex M.",
@@ -82,23 +83,21 @@ const SEED_BLOGS: Blog[] = [
   },
 ];
 
-const loadBlogs = () => {
-  try {
-    const raw = localStorage.getItem("moodchat.blogs");
-    return raw ? JSON.parse(raw) as Blog[] : SEED_BLOGS;
-  } catch {
-    return SEED_BLOGS;
-  }
-};
-
-const loadSavedBlogIds = () => {
-  try {
-    const raw = localStorage.getItem("moodchat.savedBlogs");
-    return new Set<number>(raw ? JSON.parse(raw) as number[] : [1]);
-  } catch {
-    return new Set<number>([1]);
-  }
-};
+const mapApiBlog = (blog: any): Blog => ({
+  id: String(blog.id),
+  title: blog.title,
+  content: blog.content,
+  author: blog.author?.username || "MoodChat User",
+  authorEmoji: "🧑",
+  authorBg: "#1a2a1a",
+  preview: blog.preview || blog.content?.slice(0, 160) || "",
+  tags: Array.isArray(blog.tags) ? blog.tags.map((tag: string) => tag.startsWith("#") ? tag : `#${tag}`) : [],
+  type: blog.type || "free",
+  date: blog.created_at
+    ? new Date(blog.created_at).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })
+    : "",
+  readTime: `${blog.read_time || 1} min`,
+});
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -179,25 +178,31 @@ const BlogModal: FC<{ blog: Blog; onClose: () => void }> = ({ blog, onClose }) =
 
 // ─── Tab 1: Create Blog ─────────────────────────────────────────────────────────
 
-const CreateBlog: FC<{ onPublish: (blog: Blog) => void }> = ({ onPublish }) => {
+const CreateBlog: FC<{ onPublish: (blog: Blog) => Promise<boolean> | boolean }> = ({ onPublish }) => {
   const [title, setTitle]     = useState("");
   const [content, setContent] = useState("");
   const [type, setType]       = useState<BlogType>("free");
+  const [publishing, setPublishing] = useState(false);
 
   const wordCount  = content.trim() ? content.trim().split(/\s+/).length : 0;
   const canPublish = title.trim().length > 0 && content.trim().length > 10;
 
-  const publish = () => {
-    if (!canPublish) return;
-    onPublish({
-      id: Date.now(), title: title.trim(), content: content.trim(),
+  const publish = async () => {
+    if (!canPublish || publishing) return;
+    setPublishing(true);
+    const published = await onPublish({
+      id: "", title: title.trim(), content: content.trim(),
       author: "You", authorEmoji: "🧑", authorBg: "#1a2a1a",
       preview: content.trim().slice(0, 160) + "...",
       tags: ["#personal"], type,
       date: new Date().toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }),
       readTime: Math.max(1, Math.ceil(wordCount / 200)) + " min",
     });
-    setTitle(""); setContent("");
+    setPublishing(false);
+    if (published) {
+      setTitle("");
+      setContent("");
+    }
   };
 
   const inputStyle = (focused: boolean): React.CSSProperties => ({
@@ -289,15 +294,15 @@ const CreateBlog: FC<{ onPublish: (blog: Blog) => void }> = ({ onPublish }) => {
         {/* Publish button */}
         <button
           onClick={publish}
-          disabled={!canPublish}
+          disabled={!canPublish || publishing}
           style={{
             flex: 1, padding: "12px 24px", border: "none", borderRadius: 11,
-            cursor: canPublish ? "pointer" : "not-allowed",
-            background: canPublish ? `linear-gradient(135deg,${C.lime},${C.limeDim})` : C.border,
-            color: canPublish ? "#060a06" : C.muted,
+            cursor: canPublish && !publishing ? "pointer" : "not-allowed",
+            background: canPublish && !publishing ? `linear-gradient(135deg,${C.lime},${C.limeDim})` : C.border,
+            color: canPublish && !publishing ? "#060a06" : C.muted,
             fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 13,
             letterSpacing: 0.8, textTransform: "uppercase",
-            boxShadow: canPublish ? "0 4px 22px rgba(200,245,61,.3)" : "none",
+            boxShadow: canPublish && !publishing ? "0 4px 22px rgba(200,245,61,.3)" : "none",
             transition: "all .2s",
           }}
         >
@@ -310,7 +315,7 @@ const CreateBlog: FC<{ onPublish: (blog: Blog) => void }> = ({ onPublish }) => {
 
 // ─── Blog Card ──────────────────────────────────────────────────────────────────
 
-const BlogCard: FC<{ blog: Blog; saved: boolean; onSave: (id: number) => void; onRead: (blog: Blog) => void }> = ({ blog, saved, onSave, onRead }) => {
+const BlogCard: FC<{ blog: Blog; saved: boolean; onSave: (id: string) => void; onRead: (blog: Blog) => void }> = ({ blog, saved, onSave, onRead }) => {
   const [hov, setHov] = useState(false);
 
   return (
@@ -362,7 +367,7 @@ const BlogCard: FC<{ blog: Blog; saved: boolean; onSave: (id: number) => void; o
 
 // ─── Tab 2: Read Blogs ──────────────────────────────────────────────────────────
 
-const ReadBlogs: FC<{ blogs: Blog[]; savedIds: Set<number>; onSave: (id: number) => void; onRead: (blog: Blog) => void }> = ({ blogs, savedIds, onSave, onRead }) => {
+const ReadBlogs: FC<{ blogs: Blog[]; savedIds: Set<string>; onSave: (id: string) => void; onRead: (blog: Blog) => void }> = ({ blogs, savedIds, onSave, onRead }) => {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -445,33 +450,82 @@ const ReadBlogs: FC<{ blogs: Blog[]; savedIds: Set<number>; onSave: (id: number)
 
 const BlogSystem: FC = () => {
   const [tab, setTab]               = useState<TabKey>("create");
-  const [blogs, setBlogs]           = useState<Blog[]>(loadBlogs);
-  const [savedIds, setSavedIds]     = useState<Set<number>>(loadSavedBlogIds);
+  const [blogs, setBlogs]           = useState<Blog[]>([]);
+  const [savedIds, setSavedIds]     = useState<Set<string>>(new Set());
   const [readingBlog, setReading]   = useState<Blog | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [toast, fireToast]          = useToast();
 
   useEffect(() => {
-    localStorage.setItem("moodchat.blogs", JSON.stringify(blogs));
-  }, [blogs]);
+    let mounted = true;
 
-  useEffect(() => {
-    localStorage.setItem("moodchat.savedBlogs", JSON.stringify(Array.from(savedIds)));
-  }, [savedIds]);
+    Promise.all([BlogAPI.list(), BlogAPI.saved()])
+      .then(([blogResponse, savedResponse]) => {
+        if (!mounted) return;
 
-  const publish = useCallback((blog: Blog) => {
-    setBlogs(prev => [blog, ...prev]);
-    setTab("read");
-    fireToast("Post published! 🎉");
+        const loadedBlogs = (blogResponse.data?.data ?? []).map(mapApiBlog);
+        const loadedSaved = (savedResponse.data?.data ?? []).map(mapApiBlog);
+
+        setBlogs(loadedBlogs.length ? loadedBlogs : SEED_BLOGS);
+        setSavedIds(new Set(loadedSaved.map((blog: Blog) => blog.id)));
+        console.log(`[blog-ui] loaded ${loadedBlogs.length} blog(s), ${loadedSaved.length} saved`);
+      })
+      .catch((error) => {
+        console.error("[blog-ui] failed to load blogs:", error);
+        setBlogs(SEED_BLOGS);
+        fireToast("Could not load blogs from the server", "error");
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [fireToast]);
 
-  const toggleSave = useCallback((id: number) => {
-    setSavedIds(prev => {
+  const publish = useCallback(async (blog: Blog) => {
+    try {
+      const response = await BlogAPI.create({
+        title: blog.title,
+        content: blog.content,
+        preview: blog.preview,
+        type: blog.type,
+        status: "published",
+        tags: blog.tags.map((tag) => tag.replace(/^#/, "")),
+        read_time: parseInt(blog.readTime, 10) || 1,
+      });
+      const savedBlog = mapApiBlog(response.data?.data);
+      setBlogs(prev => [savedBlog, ...prev.filter((entry) => entry.id !== savedBlog.id)]);
+      setTab("read");
+      console.log(`[blog-ui] published blog ${savedBlog.id}`);
+    fireToast("Post published! 🎉");
+      return true;
+    } catch (error) {
+      console.error("[blog-ui] publish failed:", error);
+      fireToast("Could not publish post", "error");
+      return false;
+    }
+  }, [fireToast]);
+
+  const toggleSave = useCallback(async (id: string) => {
+    const wasSaved = savedIds.has(id);
+    try {
+      if (wasSaved) await BlogAPI.unsave(id);
+      else await BlogAPI.save(id);
+
+      setSavedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); fireToast("Removed from saved"); }
       else              { next.add(id);    fireToast("Saved to your list ✓"); }
       return next;
-    });
-  }, [fireToast]);
+      });
+      console.log(`[blog-ui] ${wasSaved ? "unsaved" : "saved"} blog ${id}`);
+    } catch (error) {
+      console.error("[blog-ui] save toggle failed:", error);
+      fireToast("Could not update saved blogs", "error");
+    }
+  }, [fireToast, savedIds]);
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'DM Sans', sans-serif" }}>
@@ -493,7 +547,7 @@ const BlogSystem: FC = () => {
           </div>
           {/* Stats */}
           <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: C.sub }}>
-            <span><span style={{ color: C.lime, fontWeight: 700 }}>{blogs.length}</span> posts</span>
+            <span><span style={{ color: C.lime, fontWeight: 700 }}>{loading ? "..." : blogs.length}</span> posts</span>
             <span><span style={{ color: C.lime, fontWeight: 700 }}>{savedIds.size}</span> saved</span>
           </div>
         </div>

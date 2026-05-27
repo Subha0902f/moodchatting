@@ -6,12 +6,18 @@ A full-stack web application for mood-based chatting and social interaction, bui
 
 - **Authentication** - Secure user authentication with Supabase
 - **Real-time Chat** - Socket.IO powered instant messaging
-- **Blog System** - Create and share blog posts
+- **Blog System** - Create and share blog posts with tagging and categorization
 - **Channels** - Group conversations and community channels
 - **Mood Modes** - Express your current mood and filter content
-- **Friends System** - Add and manage friends
-- **Notepad** - Personal notes and reminders
-- **Dashboard** - Overview of your activity and stats
+- **Friends System** - Add and manage friends with request tracking
+- **Notepad** - Personal notes with colors, tags, and pinning
+- **Reminder Chatbot** - Create reminders via natural language or structured API
+  - Parse conversational messages: *"Remind me to buy milk tomorrow at 3pm"*
+  - Smart category detection and priority recognition
+  - Support for recurring reminders (daily, weekly, monthly, yearly)
+  - Status tracking: pending, completed, overdue, cancelled
+  - Advanced filtering and search capabilities
+- **Dashboard** - Overview of your activity, stats, and upcoming reminders
 
 ## 🏗️ Project Structure
 
@@ -109,23 +115,34 @@ moodchatting/
 ## 📚 Tech Stack
 
 ### Frontend
-- **React 19** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
+- **React 19** - UI library with modern hooks
+- **TypeScript** - Type-safe development with strict mode
+- **Vite** - Fast build tool and dev server
 - **React Router DOM** - Client-side routing
-- **Zustand** - State management
+- **Zustand** - Lightweight state management
 - **Socket.IO Client** - Real-time communication
 - **Tailwind CSS** - Utility-first CSS framework
-- **React Icons** - Icon library
+- **React Icons** - Comprehensive icon library
 
 ### Backend
-- **Express.js** - Web framework
-- **TypeScript** - Type safety
+- **Express.js** - Robust web framework
+- **TypeScript** - Type-safe API development
 - **Socket.IO** - Real-time bidirectional communication
-- **Supabase** - Backend-as-a-Service (Auth, Database, Storage)
-- **Helmet** - Security headers
+- **Supabase** - Backend-as-a-Service (Auth, Database, Storage, Vectors)
+- **Helmet** - Security middleware for headers
 - **CORS** - Cross-origin resource sharing
-- **Express Rate Limit** - API rate limiting
+- **Express Rate Limit** - API rate limiting and DDoS protection
+- **JWT (jsonwebtoken)** - Secure token-based authentication
+
+### Key Libraries
+- **Axios** - HTTP client for API calls
+- **js-cookie** - Cookie management
+- **dotenv** - Environment variable management
+
+### Development Tools
+- **ESLint** - Code quality and style enforcement
+- **Prettier** - Code formatting
+- **TypeScript Compiler** - Type checking and compilation
 
 ## 🔌 API Endpoints
 
@@ -179,10 +196,21 @@ moodchatting/
 - `DELETE /notes/:id` - Delete note
 
 ### Reminders
-- `GET /reminders` - Get all reminders
-- `POST /reminders` - Create reminder
-- `PUT /reminders/:id` - Update reminder
-- `DELETE /reminders/:id` - Delete reminder
+- `GET /reminders` - Get all reminders (paginated)
+- `POST /reminders` - Create reminder (structured)
+- `GET /reminders/:reminderId` - Get reminder by ID
+- `PATCH /reminders/:reminderId` - Update reminder
+- `DELETE /reminders/:reminderId` - Delete reminder
+- `POST /reminders/chatbot/create` - Create reminder via natural language
+- `GET /reminders/list/upcoming?days=7` - Get upcoming reminders
+- `GET /reminders/list/user` - Get all user reminders
+- `GET /reminders/list/status/:status` - Filter by status
+- `GET /reminders/list/category/:category` - Filter by category
+- `GET /reminders/list/overdue` - Get overdue reminders
+- `GET /reminders/list/tags/:tag` - Filter by tag
+- `PATCH /reminders/:reminderId/complete` - Mark as completed
+- `GET /reminders/search?q=query` - Search reminders
+- `GET /reminders/stats/summary` - Get reminder statistics
 
 ## 🎨 Frontend Pages
 
@@ -208,7 +236,103 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - `friends` - Friend relationships
 - `mood_modes` - Mood mode configurations
 - `notes` - Personal notes
-- `reminders` - User reminders
+- `reminders` - User reminders with status and recurrence tracking
+
+## 🤖 Reminder Chatbot System
+
+The Reminder Chatbot provides an intelligent interface for creating and managing reminders through natural language processing.
+
+### Features
+
+**Natural Language Processing:**
+- Parse conversational messages into structured reminders
+- Support for relative dates: "tomorrow", "next Monday", "next week"
+- Time parsing: "3pm", "14:30", "2:30 PM"
+- Automatic category detection based on keywords
+- Priority recognition from keywords like "urgent", "asap", "important"
+
+**Example Inputs:**
+```
+"Remind me to buy milk tomorrow at 3pm"
+"Doctor appointment next Monday at 10am"
+"URGENT: Submit project report by Friday 5pm"
+"Team meeting today at 2:30pm"
+```
+
+**Categories (Auto-Detected):**
+- Shopping: "buy", "purchase", "shop"
+- Work: "meeting", "call", "presentation", "project"
+- Health: "doctor", "hospital", "exercise", "gym"
+- Finance: "pay", "bill", "invoice", "budget"
+- Personal: (default)
+- Other: miscellaneous
+
+**Features:**
+- Recurring reminders (daily, weekly, monthly, yearly)
+- Status tracking (pending, completed, overdue, cancelled)
+- Priority levels (low, medium, high)
+- Tag-based organization
+- Overdue detection
+- Completion rate statistics
+- Full-text search
+
+### Usage Examples
+
+**Create via Chatbot (Natural Language):**
+```bash
+curl -X POST http://localhost:3000/api/reminders/chatbot/create \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Remind me to call mom tomorrow at 6pm"}'
+```
+
+**Create via Structured API:**
+```bash
+curl -X POST http://localhost:3000/api/reminders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Call mom",
+    "dueDate": "2026-05-25",
+    "dueTime": "18:00",
+    "category": "personal",
+    "priority": "medium"
+  }'
+```
+
+**Get Upcoming Reminders:**
+```bash
+curl http://localhost:3000/api/reminders/list/upcoming?days=7
+```
+
+**Get Statistics:**
+```bash
+curl http://localhost:3000/api/reminders/stats/summary
+```
+
+See [REMINDER_CHATBOT_GUIDE.md](./backend/REMINDER_CHATBOT_GUIDE.md) for comprehensive documentation.
+
+## 📝 Recent Updates (v1.1.0)
+
+### Type Safety Improvements
+- ✅ Fixed TypeScript `RequestWithUser` interface across controllers to use proper `User` type
+- ✅ Applied consistent type definitions from `backend/types/user.types.ts`
+- ✅ Updated `blogcontroller.ts`, `friendcontroller.ts`, `friendship.controller.ts`
+- ✅ Eliminated type incompatibility errors (TS2430)
+
+### Reminder Chatbot System
+- ✅ Implemented comprehensive reminder model with Supabase integration
+- ✅ Built chatbot controller with natural language parsing
+- ✅ Added 15+ API endpoints for reminder management
+- ✅ Intelligent category and priority detection
+- ✅ Recurring reminder support (daily, weekly, monthly, yearly)
+- ✅ Advanced filtering: by status, category, date range, tags
+- ✅ Reminder statistics and completion tracking
+- ✅ Full documentation with examples
+
+### Code Quality
+- ✅ Consistent error handling across all routes
+- ✅ Proper request/response types using `RequestWithUser`
+- ✅ Comprehensive inline documentation
+- ✅ Organized route structure with clear endpoints
 
 ## 🔒 Security Features
 
@@ -219,6 +343,12 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - Security headers (Helmet)
 - Input validation
 - SQL injection protection via Supabase
+
+## 📖 Documentation
+
+- [Reminder Chatbot Guide](./backend/REMINDER_CHATBOT_GUIDE.md) - Comprehensive reminder system documentation with examples
+- [Middleware Guide](./backend/MIDDLEWARE_GUIDE.md) - Middleware architecture and usage
+- [Socket Guide](./frontend/socket/SOCKET_GUIDE.md) - Real-time communication setup
 
 ## 🧪 Testing
 

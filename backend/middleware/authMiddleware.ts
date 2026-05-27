@@ -39,34 +39,82 @@ export const protect = asyncHandler(
         );
       }
 
-      // 3. Verify token using JWT secret
-      const decoded = jwt.verify(token, envConfig.jwt.secret) as JWTPayload;
+      const attachSupabaseUser = async () => {
+        const { data, error } = await supabaseAdmin.auth.getUser(token);
+        const authUser = data.user;
 
-      // 4. Get user from database using Supabase
-      // We query the users table to get the latest user data
-      const { data: user, error } = await supabaseAdmin
-        .from('users')
-        .select('id, email, full_name, role, avatar_url, created_at, updated_at')
-        .eq('id', decoded.id)
-        .single();
+        if (error || !authUser?.email) return false;
 
-      if (error || !user) {
-        throw new AppError(
-          'The user belonging to this token no longer exists.',
-          401
-        );
+        const userRow = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name:
+            (authUser.user_metadata?.full_name as string | undefined) ||
+            (authUser.user_metadata?.name as string | undefined) ||
+            (authUser.user_metadata?.username as string | undefined) ||
+            null,
+          role: UserRole.USER,
+          avatar_url: (authUser.user_metadata?.avatar_url as string | undefined) || null,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: user, error: upsertError } = await supabaseAdmin
+          .from('users')
+          .upsert(userRow, { onConflict: 'id' })
+          .select('id, email, full_name, role, avatar_url, created_at, updated_at')
+          .single();
+
+        if (upsertError || !user) {
+          console.error('[auth] Supabase user sync failed:', upsertError?.message);
+          throw new AppError('Authentication failed', 401);
+        }
+
+        req.user = {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name || undefined,
+          role: user.role as UserRole,
+          avatar_url: user.avatar_url || undefined,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        } as User;
+
+        return true;
+      };
+
+      const attachAppJwtUser = async () => {
+        const decoded = jwt.verify(token, envConfig.jwt.secret) as JWTPayload;
+
+        const { data: user, error } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name, role, avatar_url, created_at, updated_at')
+          .eq('id', decoded.id)
+          .single();
+
+        if (error || !user) {
+          throw new AppError(
+            'The user belonging to this token no longer exists.',
+            401
+          );
+        }
+
+        req.user = {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name || undefined,
+          role: user.role as UserRole,
+          avatar_url: user.avatar_url || undefined,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        } as User;
+      };
+
+      try {
+        await attachAppJwtUser();
+      } catch (jwtError) {
+        const attached = await attachSupabaseUser();
+        if (!attached) throw jwtError;
       }
-
-      // 5. Attach user to request object
-      req.user = {
-        id: user.id,
-        email: user.email,
-        full_name: user.full_name || undefined,
-        role: user.role as UserRole,
-        avatar_url: user.avatar_url || undefined,
-        created_at: user.created_at,
-        updated_at: user.updated_at
-      } as User;
 
       next();
     } catch (error) {

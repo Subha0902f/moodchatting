@@ -7,13 +7,13 @@ import { createHttpError, sendRouteError } from "../routes/routeUtils";
 interface RequestWithUser extends Request {
   user?: User;
 }
-const DEMO_USER_ID = "c91f2c3a-5c3c-4c3c-8c3c-3c3c3c3c3c3c";
 
 export const getAllBlogs = async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
     const blogs = await BlogModel.getAll(limit, offset);
+    console.log(`[blog] fetched ${blogs.length} published blog(s)`);
     res.status(200).json({ success: true, data: blogs });
   } catch (error: any) {
     sendRouteError(res, error);
@@ -37,9 +37,11 @@ export const getBlogById = async (req: Request, res: Response) => {
 
 export const createBlog = async (req: RequestWithUser, res: Response) => {
   try {
-    // In a real app, author_id would come from the authenticated user session
-    const author_id = req.user?.id || DEMO_USER_ID; // Demo User ID
+    const author_id = req.user?.id;
+    if (!author_id) throw createHttpError(401, "Authentication required");
+
     const newBlog = await BlogModel.create({ ...req.body, author_id });
+    console.log(`[blog] inserted blog ${newBlog.id} for user ${author_id}`);
     res.status(201).json({ success: true, data: newBlog });
   } catch (error: any) {
     sendRouteError(res, error);
@@ -104,10 +106,11 @@ export const getBlogsByAuthor = async (req: Request, res: Response) => {
 export const saveBlog = async (req: RequestWithUser, res: Response) => {
   try {
     const blogId = req.params.blogId as string;
-    const userId = req.user?.id || DEMO_USER_ID; // Assuming user ID is on request
+    const userId = req.user?.id;
     if (!userId) throw createHttpError(401, "Authentication required");
 
     const savedBlog = await BlogModel.save(userId, blogId);
+    console.log(`[blog] saved blog ${blogId} for user ${userId}`);
     res.status(201).json({ success: true, data: savedBlog });
   } catch (error: any) {
     sendRouteError(res, error);
@@ -117,10 +120,11 @@ export const saveBlog = async (req: RequestWithUser, res: Response) => {
 export const unsaveBlog = async (req: RequestWithUser, res: Response) => {
   try {
     const blogId = req.params.blogId as string;
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = req.user?.id;
     if (!userId) throw createHttpError(401, "Authentication required");
 
     await BlogModel.unsave(userId, blogId);
+    console.log(`[blog] unsaved blog ${blogId} for user ${userId}`);
     res.status(200).json({ success: true, message: "Blog unsaved" });
   } catch (error: any) {
     sendRouteError(res, error);
@@ -129,10 +133,11 @@ export const unsaveBlog = async (req: RequestWithUser, res: Response) => {
 
 export const getSavedBlogs = async (req: RequestWithUser, res: Response) => {
     try {
-        const userId = req.user?.id || DEMO_USER_ID;
+        const userId = req.user?.id;
         if (!userId) throw createHttpError(401, "Authentication required");
 
         const blogs = await BlogModel.getSavedByUser(userId);
+        console.log(`[blog] fetched ${blogs.length} saved blog(s) for user ${userId}`);
         res.status(200).json({ success: true, data: blogs });
     } catch (error: any) {
         sendRouteError(res, error);
@@ -159,7 +164,7 @@ export const changeBlogStatus = async (req: RequestWithUser, res: Response) => {
 export const checkSavedStatus = async (req: RequestWithUser, res: Response) => {
     try {
         const blogId = req.params.blogId as string;
-        const userId = req.user?.id || DEMO_USER_ID;
+        const userId = req.user?.id;
         if (!userId) throw createHttpError(401, "Authentication required");
 
         const isSaved = await BlogModel.isSaved(userId, blogId);

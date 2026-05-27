@@ -38,6 +38,8 @@ interface CreateChannelData {
   accent: string;
 }
 
+type ChannelTab = "All" | "Joined" | "Discover";
+
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
 const C = {
@@ -444,12 +446,18 @@ const ChannelsPage: FC = () => {
   const [posts, setPosts] = useState<ThreadMap>(SEED_POSTS);
   const [active, setActive] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<ChannelTab>("All");
   const [showCreate, setShowCreate] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q ? channels.filter(c => c.name.includes(q) || c.desc.toLowerCase().includes(q)) : channels;
-  }, [channels, search]);
+    return channels.filter(c => {
+      const matchesSearch = q ? c.name.includes(q) || c.desc.toLowerCase().includes(q) : true;
+      const isJoined = joined.has(c.id);
+      const matchesTab = tab === "All" || (tab === "Joined" ? isJoined : !isJoined);
+      return matchesSearch && matchesTab;
+    });
+  }, [channels, joined, search, tab]);
 
   const toggleJoin = (id: number) => {
     setJoined(prev => {
@@ -509,10 +517,29 @@ const ChannelsPage: FC = () => {
 
         {/* Tabs */}
         <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-          {["All", "Joined", "Discover"].map((t, i) => (
-            <div key={t} style={{ flex: 1, padding: "10px 0", textAlign: "center", fontSize: 11.5, fontWeight: 600, color: i === 0 ? C.lime : C.sub, letterSpacing: 0.5, textTransform: "uppercase", borderBottom: i === 0 ? `2px solid ${C.lime}` : "2px solid transparent", cursor: "pointer" }}>
+          {(["All", "Joined", "Discover"] as ChannelTab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              style={{
+                flex: 1,
+                padding: "10px 0",
+                textAlign: "center",
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: tab === t ? C.lime : C.sub,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                border: "none",
+                borderBottom: tab === t ? `2px solid ${C.lime}` : "2px solid transparent",
+                cursor: "pointer",
+                background: tab === t ? "rgba(200,245,61,.06)" : "transparent",
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
               {t}
-            </div>
+            </button>
           ))}
         </div>
 
