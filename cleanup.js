@@ -59,6 +59,38 @@ async function deleteAllBlogs() {
   }
 }
 
-Promise.all([deleteAllBlogs(), deleteAllUsers()]).then(() =>
-  console.log("Cleanup finished.")
-);
+async function deleteAllNotes() {
+  console.log('Deleting all records from the "notes" table...');
+  // Make sure your table is named 'notes'. If not, change it here.
+  const { error } = await supabaseAdmin.from("notes").delete().gt("id", 0); // Deletes all rows
+
+  if (error) {
+    console.error("Error deleting notes:", error.message);
+  } else {
+    console.log("Successfully deleted all notes.");
+  }
+}
+
+async function deleteAllChannels() {
+  console.log('Deleting all records from the "channels" table...');
+  // Make sure your table is named 'channels'. If not, change it here.
+  const { error } = await supabaseAdmin.from("channels").delete().gt("id", 0); // Deletes all rows
+
+  if (error) {
+    console.error("Error deleting channels:", error.message);
+  } else {
+    console.log("Successfully deleted all channels.");
+  }
+}
+
+async function main() {
+  await Promise.all([
+    deleteAllBlogs(),
+    deleteAllNotes(),
+    deleteAllChannels(),
+  ]);
+  await deleteAllUsers();
+  console.log("Cleanup finished.");
+}
+
+main().catch(console.error);

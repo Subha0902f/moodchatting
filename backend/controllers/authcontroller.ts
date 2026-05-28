@@ -1,9 +1,21 @@
-declare const Buffer: any;
-
+import { Buffer } from "buffer";
 import { createHttpError, sendRouteError } from "../routes/routeUtils";
 
-const users: any[] = [];
-const sessions = new Map<string, any>();
+// It's highly recommended to use a library like 'bcrypt' to hash passwords.
+// import bcrypt from 'bcrypt';
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  // password should be a hash, not plaintext
+  password?: string;
+}
+
+const users: User[] = [];
+const sessions = new Map<string, User>();
 
 const createToken = (userId: string) => Buffer.from(`${userId}:${Date.now()}`).toString("base64url");
 
@@ -21,7 +33,7 @@ export const register = async (req: any, res: any) => {
       throw createHttpError(409, "A user with that username or email already exists");
     }
 
-    const user = {
+    const user: User = {
       id: `${Date.now()}`,
       username,
       email,
@@ -30,6 +42,8 @@ export const register = async (req: any, res: any) => {
     };
     const token = createToken(user.id);
 
+    // In a real application, you would hash the password before saving.
+    // const hashedPassword = await bcrypt.hash(password, 10);
     users.push({ ...user, password });
     sessions.set(token, user);
 

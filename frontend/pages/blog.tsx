@@ -52,37 +52,6 @@ const C = {
   red:        "#ff4f4f",
 };
 
-// ─── Seed Data ──────────────────────────────────────────────────────────────────
-
-const SEED_BLOGS: Blog[] = [
-  {
-    id: "1",
-    title: "A Quiet Way to Start the Day",
-    content: "Some mornings do not need a dramatic reset. They need a glass of water, a clean page, and one honest sentence about how you feel.\n\nMoodChat is built around that kind of small check-in. Write the thought before it hardens into noise. Send the message before you overthink it. Keep the ritual light enough that you actually return to it.",
-    author: "MoodChat",
-    authorEmoji: "💬",
-    authorBg: "#1a2a1a",
-    preview: "Some mornings do not need a dramatic reset. They need a glass of water, a clean page, and one honest sentence about how you feel.",
-    tags: ["#reflection", "#daily"],
-    type: "free",
-    date: "May 6, 2026",
-    readTime: "1 min",
-  },
-  {
-    id: "2",
-    title: "Why Saved Notes Matter",
-    content: "A note is not always an answer. Sometimes it is just a marker that says: this mattered enough to keep.\n\nThe best personal tools make it easy to catch those markers without turning them into chores. Save the fragment, name it later, and let your future self decide what it wants to become.",
-    author: "Alex M.",
-    authorEmoji: "🧑",
-    authorBg: "#182235",
-    preview: "A note is not always an answer. Sometimes it is just a marker that says: this mattered enough to keep.",
-    tags: ["#notes", "#focus"],
-    type: "free",
-    date: "May 5, 2026",
-    readTime: "1 min",
-  },
-];
-
 const mapApiBlog = (blog: any): Blog => ({
   id: String(blog.id),
   title: blog.title,
@@ -466,13 +435,13 @@ const BlogSystem: FC = () => {
         const loadedBlogs = (blogResponse.data?.data ?? []).map(mapApiBlog);
         const loadedSaved = (savedResponse.data?.data ?? []).map(mapApiBlog);
 
-        setBlogs(loadedBlogs.length ? loadedBlogs : SEED_BLOGS);
+        setBlogs(loadedBlogs);
         setSavedIds(new Set(loadedSaved.map((blog: Blog) => blog.id)));
         console.log(`[blog-ui] loaded ${loadedBlogs.length} blog(s), ${loadedSaved.length} saved`);
       })
       .catch((error) => {
         console.error("[blog-ui] failed to load blogs:", error);
-        setBlogs(SEED_BLOGS);
+        setBlogs([]);
         fireToast("Could not load blogs from the server", "error");
       })
       .finally(() => {

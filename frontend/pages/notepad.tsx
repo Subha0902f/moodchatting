@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { NoteAPI } from "../services/api";
 
 const styles = `
@@ -484,28 +484,31 @@ export default function NoteSystem() {
     );
   }, [notes, searchQuery]);
 
-  useEffect(() => {
-    let mounted = true;
-
+  const fetchNotes = useCallback((selectFirst = false) => {
     NoteAPI.list()
       .then((response) => {
-        if (!mounted) return;
         const loadedNotes = (response.data?.data ?? []).map(mapApiNote);
         setNotes(loadedNotes);
         console.log(`[notes-ui] loaded ${loadedNotes.length} note(s)`);
 
-        if (loadedNotes.length > 0) {
+        if (selectFirst && loadedNotes.length > 0) {
           openNote(loadedNotes[0]);
         }
       })
       .catch((error) => {
         console.error("[notes-ui] failed to load notes:", error);
       });
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchNotes(true);
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [fetchNotes]);
 
   function openNote(note: Note) {
     setSelectedId(note.id);
@@ -518,9 +521,9 @@ export default function NoteSystem() {
     try {
       const response = await NoteAPI.create({ title: "Untitled", content: "" });
       const newNote = mapApiNote(response.data?.data);
-      setNotes((prev) => [newNote, ...prev]);
+      // Add the new note to the top of the list and then open it.
+      setNotes(prev => [newNote, ...prev]);
       openNote(newNote);
-      console.log(`[notes-ui] created note ${newNote.id}`);
     } catch (error) {
       console.error("[notes-ui] create failed:", error);
     }
@@ -534,9 +537,8 @@ export default function NoteSystem() {
         content: editContent,
       });
       const savedNote = mapApiNote(response.data?.data);
-      setNotes((prev) =>
-        prev.map((n) => n.id === selectedId ? savedNote : n)
-      );
+      // Refetch notes to get the correct order and latest timestamps
+      fetchNotes();
       openNote(savedNote);
       setSavedFlash(true);
       console.log(`[notes-ui] saved note ${savedNote.id}`);
@@ -550,15 +552,13 @@ export default function NoteSystem() {
     if (!selectedId) return;
     try {
       await NoteAPI.delete(selectedId);
-      const remaining = notes.filter((n) => n.id !== selectedId);
-      setNotes(remaining);
       console.log(`[notes-ui] deleted note ${selectedId}`);
+      const remaining = notes.filter(n => n.id !== selectedId);
       if (remaining.length > 0) {
+        fetchNotes(); // Refetch to be safe
         openNote(remaining[0]);
       } else {
-        setSelectedId(null);
-        setEditTitle("");
-        setEditContent("");
+        fetchNotes(); // Refetch to get an empty list from server
       }
     } catch (error) {
       console.error("[notes-ui] delete failed:", error);
