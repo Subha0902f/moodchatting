@@ -12,20 +12,34 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "moodchatting-theme";
 
+/**
+ * Theme Provider Component
+ * Manages theme state, persistence, and application
+ * Applies theme to body element for CSS variable propagation
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>("dark");
+  const [mounted, setMounted] = useState(false);
 
+  // Load theme from storage on mount
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark") {
-      setModeState(stored);
-    }
+    const preferredTheme = (stored === "light" || stored === "dark" ? stored : "dark") as ThemeMode;
+    setModeState(preferredTheme);
+    setMounted(true);
   }, []);
 
+  // Apply theme to DOM whenever mode changes
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    if (!mounted) return;
+    
+    // Apply theme to body element for CSS variable selector
+    document.body.dataset.theme = mode;
     document.documentElement.dataset.theme = mode;
-  }, [mode]);
+    
+    // Persist to localStorage
+    window.localStorage.setItem(STORAGE_KEY, mode);
+  }, [mode, mounted]);
 
   const value = useMemo(
     () => ({

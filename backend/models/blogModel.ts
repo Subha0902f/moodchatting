@@ -63,6 +63,27 @@ export interface BlogWithAuthor extends Blog {
 
 const BlogModel = {
 
+  // ── Get all blogs (published) ──────────────────────────────────────────────────
+
+  async getAll(limit = 20, offset = 0): Promise<BlogWithAuthor[]> {
+    const { data, error } = await supabase
+      .from("blogs")
+      .select(`
+        *,
+        author:users (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(`BlogModel.getAll: ${error.message}`);
+    return (data ?? []) as BlogWithAuthor[];
+  },
+
   // ── Create a new blog post ──────────────────────────────────────────────────
 
   async create(payload: CreateBlogPayload): Promise<Blog> {
@@ -278,6 +299,28 @@ const BlogModel = {
       throw new Error(`BlogModel.isSaved: ${error.message}`);
     }
     return !!data;
+  },
+
+  // ── Get blogs by author ────────────────────────────────────────────────────
+
+  async getByAuthor(authorId: string, limit = 20): Promise<BlogWithAuthor[]> {
+    const { data, error } = await supabase
+      .from("blogs")
+      .select(`
+        *,
+        author:users (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq("author_id", authorId)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw new Error(`BlogModel.getByAuthor: ${error.message}`);
+    return (data ?? []) as BlogWithAuthor[];
   },
 
   // ── Get blogs by tag ────────────────────────────────────────────────────────

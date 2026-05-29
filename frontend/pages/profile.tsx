@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 import { useAuth } from "../context/AuthContext";
 import { getProfile } from "../services/userservice";
 
@@ -72,15 +74,15 @@ const PROFILE: ProfileData = {
 // ─── Inline styles (CSS-in-JS) ────────────────────────────────────────────────
 
 const C = {
-  lime: "#BFFF00",
-  limeDim: "#99CC00",
+  lime: "var(--lime)",
+  limeDim: "var(--lime)",
   limeGlow: "rgba(191,255,0,0.15)",
-  black: "#0A0A0A",
-  surface: "#141414",
-  surface2: "#1E1E1E",
-  surface3: "#272727",
-  text: "#F2F2F2",
-  muted: "#888",
+  black: "var(--bg)",
+  surface: "var(--surface)",
+  surface2: "var(--card)",
+  surface3: "var(--card2)",
+  text: "var(--text)",
+  muted: "var(--sub)",
   border: "rgba(191,255,0,0.18)",
 } as const;
 
@@ -172,6 +174,8 @@ export default function ProfilePage() {
   const [remoteProfile, setRemoteProfile] = useState<Record<string, any> | null>(null);
   const [copied, setCopied] = useState(false);
 
+  useTheme();
+
   useEffect(() => {
     let mounted = true;
 
@@ -233,9 +237,12 @@ export default function ProfilePage() {
 
   const handleCopy = () => {
     if (!p.profileLink) return;
-    Promise.resolve(navigator.clipboard?.writeText(p.profileLink)).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard?.writeText(p.profileLink)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => console.error("Failed to copy profile link: ", err));
   };
 
   if (loading) {

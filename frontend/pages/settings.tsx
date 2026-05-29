@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const css = `
@@ -590,6 +592,8 @@ function TrashIcon() {
 /* ─── MAIN COMPONENT ─────────────────────────────────────────────────────── */
 export default function SettingsPanel() {
   const stored = loadSettings();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  
   // Open/close sections
   const [open, setOpen] = useState([true, false, false, false]);
   const toggle = (i: number) => setOpen(p => p.map((v, j) => j === i ? !v : v));
@@ -598,8 +602,13 @@ export default function SettingsPanel() {
   const [visibility, setVisibility] = useState<"Public"|"Private"|"Custom">(stored.visibility);
   const [picVisibility, setPicVisibility] = useState<"Everyone"|"None"|"Selected users">(stored.picVisibility);
 
-  // §2 Theme
-  const [theme, setTheme] = useState<"light"|"dark">(stored.theme);
+  // §2 Theme - sync with global theme context
+  const [theme, setThemeLocal] = useState<"light"|"dark">(themeMode);
+
+  const handleThemeChange = (newTheme: "light" | "dark") => {
+    setThemeLocal(newTheme);
+    setThemeMode(newTheme);
+  };
 
   // §3 Mode users
   const [modeUsers, setModeUsers] = useState<Record<ModeKey, string[]>>(stored.modeUsers);
@@ -620,6 +629,11 @@ export default function SettingsPanel() {
   const [reminders, setReminders] = useState<Reminder[]>(stored.reminders);
   const [toast, setToast] = useState<Reminder | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // Sync local theme with global theme when global changes
+  useEffect(() => {
+    setThemeLocal(themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     localStorage.setItem("moodchat.settings", JSON.stringify({
@@ -711,7 +725,7 @@ export default function SettingsPanel() {
           {open[1] && (
             <div className="section-body">
               <div className="theme-cards">
-                <div className={`theme-card light-card${theme==="light"?" active":""}`} onClick={()=>setTheme("light")}>
+                <div className={`theme-card light-card${theme==="light"?" active":""}`} onClick={()=>handleThemeChange("light")}>
                   <div className="theme-card-preview">
                     <div className="theme-dot" />
                     <div className="theme-bar-wrap light-bars">
@@ -722,7 +736,7 @@ export default function SettingsPanel() {
                   <div className="theme-name">Light Mode</div>
                   <div className="theme-check"><CheckIcon /></div>
                 </div>
-                <div className={`theme-card dark-card${theme==="dark"?" active":""}`} onClick={()=>setTheme("dark")}>
+                <div className={`theme-card dark-card${theme==="dark"?" active":""}`} onClick={()=>handleThemeChange("dark")}>
                   <div className="theme-card-preview">
                     <div className="theme-dot" />
                     <div className="theme-bar-wrap dark-bars">

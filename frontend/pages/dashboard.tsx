@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,20 +49,20 @@ const readStored = <T,>(key: string, fallback: T): T => {
 // ─── Design tokens (CSS-in-JS) ─────────────────────────────────────────────────
 
 const C = {
-  lime:         "#c8f53d",
-  limeDim:      "#9cc52b",
+  lime:         "var(--lime)",
+  limeDim:      "var(--lime)",
   limeSoft:     "rgba(200,245,61,0.10)",
   limeBorder:   "rgba(200,245,61,0.20)",
   limeGlow:     "rgba(200,245,61,0.06)",
-  bg:           "#080a08",
-  card:         "#0e100e",
-  surface:      "#141614",
-  surface2:     "#191b19",
-  border:       "#1c1e1c",
-  border2:      "#252925",
-  text:         "#dde8dd",
-  sub:          "#4d574d",
-  muted:        "#333a33",
+  bg:           "var(--bg)",
+  card:         "var(--card)",
+  surface:      "var(--surface)",
+  surface2:     "var(--card2)",
+  border:       "var(--border)",
+  border2:      "var(--border2)",
+  text:         "var(--text)",
+  sub:          "var(--sub)",
+  muted:        "var(--sub2)",
   red:          "#ff5252",
   redSoft:      "rgba(255,82,82,0.10)",
   green:        "#4ade80",
@@ -295,6 +297,8 @@ const FriendsDashboard: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>(() => readStored("moodchat.friends", INIT_FRIENDS));
   const [requests, setRequests] = useState<Request[]>(() => readStored("moodchat.requests", INIT_REQUESTS));
   const [toastMsg, toastVis, fire] = useToast();
+
+  useTheme();
 
   useEffect(() => {
     localStorage.setItem("moodchat.friends", JSON.stringify(friends));

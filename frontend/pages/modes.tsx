@@ -5,11 +5,13 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type ModeKey = "professional" | "fun" | "private" | "relaxment" | "allinone";
-type ModalIntent = "add" | "remove";
+type ModalIntent = "add" | "remove" | "edit";
 
 interface Friend {
   id: number;
@@ -30,13 +32,18 @@ interface ModeState {
 }
 
 interface ModalState {
-  modeKey: ModeKey;
+  modeKey?: ModeKey;
   intent: ModalIntent;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const ALL_FRIENDS: Friend[] = [];
+const ALL_FRIENDS: Friend[] = [
+  { id: 1, name: "Aria Nakamura", emoji: "🌸", bg: "#2a1e0a", online: true },
+  { id: 2, name: "Dev Sharma",    emoji: "🔥", bg: "#0a1e2a", online: false },
+  { id: 3, name: "Zoe Ellis",     emoji: "⚡", bg: "#1e0a2a", online: true },
+  { id: 4, name: "Kai Watanabe",  emoji: "🌊", bg: "#2a2a0a", online: false },
+];
 
 const MODE_META: Record<ModeKey, ModeMeta> = {
   professional: { label: "Professional", icon: "💼", accent: "#60a5fa" },
@@ -57,15 +64,15 @@ const INIT_MODES: Record<ModeKey, ModeState> = {
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#080a08",
-  card:    "#0e100e",
-  surface: "#141614",
-  border:  "#1c1e1c",
-  border2: "#252925",
-  text:    "#dde8dd",
-  sub:     "#4d574d",
-  muted:   "#2a2e2a",
-  lime:    "#c8f53d",
+  bg:      "var(--bg)",
+  card:    "var(--card)",
+  surface: "var(--surface)",
+  border:  "var(--border)",
+  border2: "var(--border2)",
+  text:    "var(--text)",
+  sub:     "var(--sub)",
+  muted:   "var(--sub2)",
+  lime:    "var(--lime)",
 };
 
 // ─── Avatar ────────────────────────────────────────────────────────────────────
@@ -112,6 +119,100 @@ function useToast(): [string, boolean, (msg: string) => void] {
   return [msg, vis, fire];
 }
 
+// ─── Edit Modal ────────────────────────────────────────────────────────────────
+
+interface EditModalProps {
+  modeKey: ModeKey;
+  meta: ModeMeta;
+  onClose: () => void;
+  onSave: (key: ModeKey, newLabel: string) => void;
+}
+
+const EditModal: React.FC<EditModalProps> = ({ modeKey, meta, onClose, onSave }) => {
+  const [label, setLabel] = useState(meta.label);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 120);
+  }, []);
+
+  const handleSave = () => {
+    const newLabel = label.trim();
+    if (!newLabel) {
+      setError("Mode name cannot be empty.");
+      return;
+    }
+    // Here you could add logic to check for duplicate names
+    onSave(modeKey, newLabel);
+    onClose();
+  };
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1001,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "rgba(4,6,4,.85)", backdropFilter: "blur(10px)",
+      }}
+    >
+      <div style={{
+        width: 400, maxWidth: "90vw", background: C.card,
+        border: `1px solid ${meta.accent}44`, borderRadius: 22,
+        boxShadow: `0 20px 60px rgba(0,0,0,.7), 0 0 40px ${meta.accent}18`,
+      }}>
+        <div style={{ padding: "20px 22px", borderBottom: `1px solid ${C.border}` }}>
+          <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 16, fontWeight: 700, color: C.text }}>
+            Edit Mode: {meta.label}
+          </h3>
+        </div>
+        <div style={{ padding: "16px 22px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, color: C.sub, marginBottom: 6, display: "block" }}>Mode Name</label>
+            <input
+              ref={inputRef}
+              value={label}
+              onChange={(e) => {
+                setLabel(e.target.value);
+                setError("");
+              }}
+              style={{
+                width: "100%", background: C.surface, border: `1px solid ${error ? "#ff5252" : C.border}`,
+                borderRadius: 10, padding: "10px 14px", color: C.text, fontSize: 14, outline: "none",
+              }}
+            />
+            {error && <div style={{ fontSize: 11, color: "#ff5252", marginTop: 5 }}>{error}</div>}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: "8px 16px", border: `1px solid ${C.border2}`, borderRadius: 10,
+                background: "transparent", color: C.sub, cursor: "pointer",
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                padding: "8px 20px", border: "none", borderRadius: 10, cursor: "pointer",
+                background: `linear-gradient(135deg,${meta.accent},${meta.accent}bb)`,
+                color: "#060a06", fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                fontSize: 12, textTransform: "uppercase",
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Mode Card ─────────────────────────────────────────────────────────────────
 
 interface ModeCardProps {
@@ -157,6 +258,11 @@ const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, onOpenModal
                 {meta.label}
               </span>
             </div>
+            <button onClick={() => onOpenModal(modeKey, "edit")} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.94284 2.3135L11.6865 5.05716M2.24999 11.75L1.75 12.25L1.86612 10.6339L8.25297 4.24703L10.1339 6.12797L3.74703 12.5148L2.24999 11.75Z" stroke={C.sub} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           </div>
           <div style={{
             background: `${meta.accent}15`, border: `1px solid ${meta.accent}33`,
@@ -262,7 +368,7 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }) => {
   const meta = MODE_META[modeKey];
-  const currentIds = modes[modeKey].users;
+  const currentIds = modes[modeKey]?.users ?? [];
   const [selected, setSelected] = useState<Set<number>>(new Set(currentIds));
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -286,6 +392,13 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
       return next;
     });
   };
+
+  const addAllFriends = () => {
+    const allFriendIds = ALL_FRIENDS.map(f => f.id);
+    setSelected(new Set(allFriendIds));
+  };
+
+  const allFriendsAdded = ALL_FRIENDS.every(f => selected.has(f.id));
 
   const hasChanged =
     [...selected].sort().join(",") !== [...currentIds].sort().join(",");
@@ -340,7 +453,7 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
         </div>
 
         {/* Search */}
-        <div style={{ padding: "14px 22px 0" }}>
+        <div style={{ padding: "14px 22px 0", display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.sub, pointerEvents: "none" }}>🔍</span>
             <input
@@ -358,6 +471,22 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
               }}
             />
           </div>
+          {intent === 'add' && (
+            <button
+              onClick={addAllFriends}
+              disabled={allFriendsAdded || ALL_FRIENDS.length === 0}
+              style={{
+                padding: "10px 16px",
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 11,
+                color: C.text,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: (allFriendsAdded || ALL_FRIENDS.length === 0) ? "not-allowed" : "pointer",
+                opacity: (allFriendsAdded || ALL_FRIENDS.length === 0) ? 0.5 : 1,
+              }}>Add All</button>
+          )}
         </div>
 
         {/* Friend list */}
@@ -444,15 +573,30 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
 
 const ModesContainer: React.FC = () => {
   const [modes, setModes] = useState<Record<ModeKey, ModeState>>(INIT_MODES);
+  const [modeMeta, setModeMeta] = useState(MODE_META);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toastMsg, toastVis, fire] = useToast();
 
-  const openModal  = (key: ModeKey, intent: ModalIntent) => setModal({ modeKey: key, intent });
+  useTheme();
+
+  const openModal = (key: ModeKey, intent: ModalIntent) => setModal({ modeKey: key, intent });
   const closeModal = () => setModal(null);
 
   const saveModal = (modeKey: ModeKey, selectedIds: number[]) => {
     setModes(prev => ({ ...prev, [modeKey]: { users: selectedIds } }));
-    fire(`${MODE_META[modeKey].label} mode updated ✓`);
+    fire(`${modeMeta[modeKey].label} mode updated ✓`);
+    closeModal();
+  };
+
+  const saveEditModal = (modeKey: ModeKey, newLabel: string) => {
+    setModeMeta(prev => ({
+      ...prev,
+      [modeKey]: {
+        ...prev[modeKey],
+        label: newLabel,
+      }
+    }));
+    fire(`Mode renamed to "${newLabel}"`);
     closeModal();
   };
 
@@ -507,7 +651,7 @@ const ModesContainer: React.FC = () => {
             <ModeCard
               key={key}
               modeKey={key}
-              meta={MODE_META[key]}
+              meta={modeMeta[key]}
               userIds={modes[key].users}
               onOpenModal={openModal}
               onRemoveUser={removeUser}
@@ -517,13 +661,22 @@ const ModesContainer: React.FC = () => {
       </div>
 
       {/* Modal */}
-      {modal && (
+      {modal && modal.intent !== 'edit' && modal.modeKey && (
         <Modal
           modeKey={modal.modeKey}
           intent={modal.intent}
           modes={modes}
           onClose={closeModal}
           onSave={saveModal}
+        />
+      )}
+
+      {modal && modal.intent === 'edit' && modal.modeKey && (
+        <EditModal
+          modeKey={modal.modeKey}
+          meta={modeMeta[modal.modeKey]}
+          onClose={closeModal}
+          onSave={saveEditModal}
         />
       )}
 

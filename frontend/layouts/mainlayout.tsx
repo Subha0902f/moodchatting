@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../pages/useTheme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -227,6 +228,36 @@ const SideNavItem: React.FC<{
   );
 };
 
+/** Theme toggle button */
+const ThemeToggle: React.FC = () => {
+  const { mode, toggleTheme } = useTheme();
+
+  return (
+    <div
+      onClick={toggleTheme}
+      style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: T.surface, border: `1px solid ${T.border}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        cursor: "pointer", color: T.muted, transition: "all 0.18s ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = T.limeBorder;
+        e.currentTarget.style.color = T.lime;
+        e.currentTarget.style.boxShadow = `0 0 12px ${T.lime}30`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = T.border;
+        e.currentTarget.style.color = T.muted;
+        e.currentTarget.style.boxShadow = "none";
+      }}
+      title={`Switch to ${mode === "dark" ? "light" : "dark"} mode`}
+    >
+      {mode === "dark" ? <Icon.Sun /> : "🌙"}
+    </div>
+  );
+};
+
 /** Profile dropdown */
 const ProfileDropdown: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -401,14 +432,29 @@ const MoodChatLayout: React.FC = () => {
           }}>💬</div>
         </div>
 
-        {/* Profile avatar */}
-        <div style={{
-          width: 40, height: 40, borderRadius: "50%",
-          background: "linear-gradient(135deg,#2a2d36,#1a1c22)",
-          border: `2px solid ${T.border2}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 18, cursor: "pointer", marginBottom: 20, position: "relative",
-        }}>
+        {/* Profile avatar - clickable to navigate to profile */}
+        <div 
+          onClick={() => navigate("/profile")}
+          style={{
+            width: 40, height: 40, borderRadius: "50%",
+            background: "linear-gradient(135deg,#2a2d36,#1a1c22)",
+            border: `2px solid ${T.border2}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, cursor: "pointer", marginBottom: 20, position: "relative",
+            transition: "all 0.18s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = T.lime;
+            e.currentTarget.style.boxShadow = `0 0 12px ${T.lime}40`;
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = T.border2;
+            e.currentTarget.style.boxShadow = "none";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+          title="Go to Profile"
+        >
           🧑
           <div style={{
             position: "absolute", bottom: 1, right: 1,
@@ -511,15 +557,8 @@ const MoodChatLayout: React.FC = () => {
             }} />
           </div>
 
-          {/* Theme */}
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: T.surface, border: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: T.muted,
-          }}>
-            <Icon.Sun />
-          </div>
+          {/* Theme Toggle */}
+          <ThemeToggle />
 
           {/* Profile */}
           <ProfileDropdown />

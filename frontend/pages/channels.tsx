@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -7,6 +7,8 @@ import React, {
   FC,
   KeyboardEvent,
 } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,59 +45,25 @@ type ChannelTab = "All" | "Joined" | "Discover";
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#07090a",
-  card:    "#0d0f10",
-  surface: "#131516",
-  surface2:"#181a1c",
-  border:  "#1b1d1f",
-  border2: "#232628",
-  text:    "#dde0e8",
-  sub:     "#4a4e5a",
-  muted:   "#282c32",
-  lime:    "#c8f53d",
-  limeDim: "#9cc52b",
-  red:     "#ff5252",
+  bg:      "var(--bg)",
+  card:    "var(--card)",
+  surface: "var(--surface)",
+  surface2:"var(--card2)",
+  border:  "var(--border)",
+  border2: "var(--border2)",
+  text:    "var(--text)",
+  sub:     "var(--sub)",
+  muted:   "var(--sub2)",
+  lime:    "var(--lime)",
+  limeDim: "var(--lime)",
+  red:     "#ff5252", // This can be themed as well if needed
 };
 
 // ─── Seed data ──────────────────────────────────────────────────────────────────
 
-const INIT_CHANNELS: Channel[] = [
-  { id: 1, name: "vibes-only",       desc: "Pure good energy. No negativity allowed 🌊",    creator: "Community",     emoji: "🌊", accent: "#60a5fa", members: 142, joined: true  },
-  { id: 2, name: "dev-talk",         desc: "Code, bugs, and caffeine. All things dev.",       creator: "Community",    emoji: "💻", accent: "#4ade80", members: 89,  joined: false },
-  { id: 3, name: "design-inspo",     desc: "Share what moves you aesthetically.",             creator: "Community",   emoji: "🎨", accent: "#f472b6", members: 203, joined: true  },
-  { id: 4, name: "midnight-rants",   desc: "3am thoughts? Drop them here.",                  creator: "Community", emoji: "🌙", accent: "#a78bfa", members: 57,  joined: false },
-  { id: 5, name: "productivity-hub", desc: "Systems, habits, tools to get things done.",     creator: "Community",    emoji: "⚡", accent: "#c8f53d", members: 311, joined: false },
-  { id: 6, name: "music-heads",      desc: "Playlists, reviews, and deep cuts only.",        creator: "Community",    emoji: "🎵", accent: "#fb923c", members: 178, joined: true  },
-];
+const INIT_CHANNELS: Channel[] = [];
 
-const SEED_POSTS: ThreadMap = {
-  1: [
-    { id: 1, author: "Anonymous",    emoji: "🎵", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous",    emoji: "⚡", time: "Any time", text: "Message content varies." },
-    { id: 3, author: "Anonymous",  emoji: "🎮", time: "Any time", text: "Message content varies." },
-  ],
-  2: [
-    { id: 1, author: "Anonymous",   emoji: "🚀", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous", emoji: "🌿", time: "Any time", text: "Message content varies." },
-  ],
-  3: [
-    { id: 1, author: "Anonymous",     emoji: "🦋", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous",   emoji: "🌸", time: "Any time", text: "Message content varies." },
-    { id: 3, author: "Anonymous",    emoji: "🌊", time: "Any time", text: "Message content varies." },
-  ],
-  4: [
-    { id: 1, author: "Anonymous", emoji: "🌸", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous",     emoji: "🎵", time: "Any time", text: "Message content varies." },
-  ],
-  5: [
-    { id: 1, author: "Anonymous",  emoji: "🔥", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous",  emoji: "🚀", time: "Any time", text: "Message content varies." },
-  ],
-  6: [
-    { id: 1, author: "Anonymous", emoji: "✨", time: "Any time", text: "Message content varies." },
-    { id: 2, author: "Anonymous",  emoji: "⚡", time: "Any time", text: "Message content varies." },
-  ],
-};
+const SEED_POSTS: ThreadMap = {};
 
 const AV_BGS = ["#1a2e1a", "#2a1e0a", "#0a1e2a", "#1e0a2a", "#2a2a0a", "#0a2a1e", "#2a0a0a"];
 const nameToAvBg = (name: string) => AV_BGS[name.charCodeAt(0) % AV_BGS.length];
@@ -448,6 +416,8 @@ const ChannelsPage: FC = () => {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<ChannelTab>("All");
   const [showCreate, setShowCreate] = useState(false);
+
+  useTheme();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

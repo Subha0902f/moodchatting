@@ -1,12 +1,13 @@
-import React, {
+import  {
   useState,
   useRef,
   useCallback,
   useMemo,
   useEffect,
   FC,
-  ReactNode,
 } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 import { BlogAPI } from "../services/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -36,20 +37,20 @@ interface ToastState {
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
 
 const C = {
-  bg:         "#06080a",
-  card:       "#0c0e10",
-  surface:    "#111316",
-  border:     "#1a1d21",
-  border2:    "#222629",
-  text:       "#e2e6ee",
-  textSub:    "#c8ccd4",
-  sub:        "#4e5464",
-  muted:      "#282d34",
-  lime:       "#c8f53d",
-  limeDim:    "#9cc52b",
-  limeSoft:   "rgba(200,245,61,0.08)",
-  limeBorder: "rgba(200,245,61,0.22)",
-  red:        "#ff4f4f",
+  bg:         "var(--bg)",
+  card:       "var(--card)",
+  surface:    "var(--surface)",
+  border:     "var(--border)",
+  border2:    "var(--border2)",
+  text:       "var(--text)",
+  textSub:    "var(--text)",
+  sub:        "var(--sub)",
+  muted:      "var(--sub2)",
+  lime:       "var(--lime)",
+  limeDim:    "var(--lime)",
+  limeSoft:   "rgba(200,245,61,0.08)", // This can be themed as well if needed
+  limeBorder: "rgba(200,245,61,0.22)", // This can be themed as well if needed
+  red:        "#ff4f4f", // This can be themed as well if needed
 };
 
 const mapApiBlog = (blog: any): Blog => ({
@@ -424,6 +425,8 @@ const BlogSystem: FC = () => {
   const [readingBlog, setReading]   = useState<Blog | null>(null);
   const [loading, setLoading]       = useState(true);
   const [toast, fireToast]          = useToast();
+
+  useTheme();
 
   useEffect(() => {
     let mounted = true;

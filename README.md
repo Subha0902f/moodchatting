@@ -310,7 +310,7 @@ curl http://localhost:3000/api/reminders/stats/summary
 
 See [REMINDER_CHATBOT_GUIDE.md](./backend/REMINDER_CHATBOT_GUIDE.md) for comprehensive documentation.
 
-## 📝 Recent Updates (v1.1.0)
+## 📝 Key Accomplishments (v1.1.0)
 
 ### Type Safety Improvements
 - ✅ Fixed TypeScript `RequestWithUser` interface across controllers to use proper `User` type

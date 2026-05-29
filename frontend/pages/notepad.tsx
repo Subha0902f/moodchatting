@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 import { NoteAPI } from "../services/api";
 
 const styles = `
@@ -6,38 +8,11 @@ const styles = `
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --black: #0a0a0a;
-    --dark: #111111;
-    --card: #161616;
-    --border: #1f1f1f;
-    --lime: #c6f135;
-    --lime-dim: #a8d420;
-    --lime-glow: rgba(198, 241, 53, 0.12);
-    --lime-glow-strong: rgba(198, 241, 53, 0.22);
-    --text: #e8e8e8;
-    --muted: #555;
-    --muted2: #333;
-  }
-
-  body {
-    background: var(--black);
-    font-family: 'DM Sans', sans-serif;
-    color: var(--text);
-    min-height: 100vh;
-  }
-
-  .app {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  /* SIDEBAR */
   .sidebar {
     width: 300px;
-    min-width: 300px;
-    background: var(--dark);
+    min-width: 280px;
+    height: 100vh;
+    background: var(--surface);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -46,11 +21,11 @@ const styles = `
 
   .sidebar-header {
     padding: 28px 20px 20px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border2);
   }
 
   .app-label {
-    font-family: 'Space Mono', monospace;
+    -family: 'Space Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.2em;
     color: var(--lime);
@@ -161,7 +136,7 @@ const styles = `
   .notes-count {
     font-family: 'Space Mono', monospace;
     font-size: 10px;
-    color: var(--muted);
+    color: var(--sub);
     padding: 14px 20px 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -174,7 +149,7 @@ const styles = `
   }
 
   .notes-list::-webkit-scrollbar { width: 3px; }
-  .notes-list::-webkit-scrollbar-thumb { background: var(--muted2); }
+  .notes-list::-webkit-scrollbar-thumb { background: var(--sub2); }
   .notes-list::-webkit-scrollbar-track { background: transparent; }
 
   .note-item {
@@ -184,15 +159,14 @@ const styles = `
     transition: all 0.15s ease;
     position: relative;
   }
-
+  
   .note-item:hover {
     background: var(--lime-glow);
     border-left-color: rgba(198, 241, 53, 0.4);
   }
 
   .note-item.active {
-    background: var(--lime-glow-strong);
-    border-left-color: var(--lime);
+    background: var(--lime-glow-strong);e v
   }
 
   .note-item + .note-item {
@@ -215,7 +189,7 @@ const styles = `
 
   .note-item-preview {
     font-size: 12px;
-    color: var(--muted);
+    color: var(--sub);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -225,7 +199,7 @@ const styles = `
   .note-item-date {
     font-family: 'Space Mono', monospace;
     font-size: 9px;
-    color: var(--muted2);
+    color: var(--sub2);
     margin-top: 6px;
     letter-spacing: 0.05em;
   }
@@ -239,26 +213,26 @@ const styles = `
     gap: 12px;
     padding: 40px;
     text-align: center;
+    height: 100%;
   }
 
   .empty-icon {
     width: 48px;
-    height: 48px;
-    border: 1px dashed var(--muted2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
+    height: 48px;ar(--muted2);
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: var(--sub);
   }
 
   .empty-title {
     font-family: 'Space Mono', monospace;
     font-size: 11px;
-    color: var(--muted);
+    color: var(--sub);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
-
+  
   .empty-sub {
     font-size: 12px;
     color: var(--muted2);
@@ -270,23 +244,21 @@ const styles = `
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: var(--black);
+    background: var(--bg);
     overflow: hidden;
   }
 
   .editor-topbar {
     padding: 20px 32px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border2);
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: nt: space-between;
     min-height: 69px;
   }
-
   .editor-meta {
     font-family: 'Space Mono', monospace;
     font-size: 10px;
-    color: var(--muted);
+    color: var(--sub);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
@@ -312,7 +284,6 @@ const styles = `
     align-items: center;
     gap: 8px;
     transition: all 0.15s ease;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
   }
 
   .save-btn:hover {
@@ -329,7 +300,7 @@ const styles = `
 
   .delete-btn {
     background: transparent;
-    color: var(--muted);
+    color: var(--sub);
     border: 1px solid var(--muted2);
     padding: 9px 14px;
     cursor: pointer;
@@ -357,7 +328,6 @@ const styles = `
   .title-input {
     background: transparent;
     border: none;
-    outline: none;
     font-family: 'Space Mono', monospace;
     font-size: 26px;
     font-weight: 700;
@@ -414,13 +384,13 @@ const styles = `
   .welcome-title {
     font-family: 'Space Mono', monospace;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--sub);
     letter-spacing: 0.15em;
     text-transform: uppercase;
   }
 
   .welcome-sub {
-    font-size: 13px;
+    font-size: 13px; 
     color: var(--muted2);
     max-width: 280px;
     line-height: 1.7;
@@ -438,10 +408,13 @@ const styles = `
   .char-count {
     font-family: 'Space Mono', monospace;
     font-size: 9px;
-    color: var(--muted2);
+    color: var(--sub2);
     letter-spacing: 0.1em;
-    padding-top: 8px;
+    padding-top: 8px; 
     border-top: 1px solid var(--border);
+  }
+  .app {
+    display: flex; height: 100vh;
   }
 `;
 
@@ -449,8 +422,7 @@ type Note = {
   id: string;
   title: string;
   content: string;
-  updatedAt: Date;
-};
+  updatedAt: Date;}
 
 const mapApiNote = (note: any): Note => ({
   id: String(note.id),
@@ -471,6 +443,8 @@ export default function NoteSystem() {
   const [editContent, setEditContent] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+
+  useTheme();
 
   const selectedNote = notes.find((n) => n.id === selectedId);
 
@@ -501,14 +475,8 @@ export default function NoteSystem() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    fetchNotes(true);
-
-    return () => {
-      mounted = false;
-    };
-  }, [fetchNotes]);
+  fetchNotes(true);
+}, [fetchNotes]);
 
   function openNote(note: Note) {
     setSelectedId(note.id);

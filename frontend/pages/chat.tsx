@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -6,6 +6,8 @@ import React, {
   KeyboardEvent,
   FC,
 } from "react";
+import "./theme.css";
+import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,14 +65,14 @@ const SEED_THREADS: ThreadMap = {};
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#070907",
-  card:    "#0d0f0d",
-  surface: "#131513",
-  border:  "#1b1d1b",
-  border2: "#23262a",
-  text:    "#dde8dd",
-  sub:     "#4a544a",
-  muted:   "#282e28",
+  bg:      "var(--bg)",
+  card:    "var(--card)",
+  surface: "var(--surface)",
+  border:  "var(--border)",
+  border2: "var(--border2)",
+  text:    "var(--text)",
+  sub:     "var(--sub)",
+  muted:   "var(--sub2)",
 };
 
 // ─── Avatar ────────────────────────────────────────────────────────────────────
@@ -192,6 +194,8 @@ const ChatUI: FC = () => {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useTheme();
 
   const active = CONTACTS.find(c => c.id === activeId) ?? null;
   const mode   = active ? MODES[active.mode] : MODES.allinone;
