@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 import { NoteAPI } from "../services/api";
 
 const styles = `
@@ -443,8 +442,6 @@ export default function NoteSystem() {
   const [editContent, setEditContent] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-
-  useTheme();
 
   const selectedNote = notes.find((n) => n.id === selectedId);
 

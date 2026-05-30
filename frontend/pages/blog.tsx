@@ -7,7 +7,6 @@ import  {
   FC,
 } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 import { BlogAPI } from "../services/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -425,8 +424,6 @@ const BlogSystem: FC = () => {
   const [readingBlog, setReading]   = useState<Blog | null>(null);
   const [loading, setLoading]       = useState(true);
   const [toast, fireToast]          = useToast();
-
-  useTheme();
 
   useEffect(() => {
     let mounted = true;

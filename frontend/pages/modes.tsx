@@ -6,7 +6,6 @@ import React, {
   useRef,
 } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -576,8 +575,6 @@ const ModesContainer: React.FC = () => {
   const [modeMeta, setModeMeta] = useState(MODE_META);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toastMsg, toastVis, fire] = useToast();
-
-  useTheme();
 
   const openModal = (key: ModeKey, intent: ModalIntent) => setModal({ modeKey: key, intent });
   const closeModal = () => setModal(null);

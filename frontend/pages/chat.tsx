@@ -7,7 +7,6 @@ import {
   FC,
 } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -194,8 +193,6 @@ const ChatUI: FC = () => {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useTheme();
 
   const active = CONTACTS.find(c => c.id === activeId) ?? null;
   const mode   = active ? MODES[active.mode] : MODES.allinone;

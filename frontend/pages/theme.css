@@ -13,6 +13,25 @@ body[data-theme='light'] * {
   --sub2: #aaa;
   --lime: #9cc52b;
   --lime-dim: rgba(156,197,43,0.13);
+  --lime-glow: rgba(156,197,43,0.15);
+  --lime-border: rgba(156,197,43,0.18);
+  --sidebar-bg: #f5f5f5;
+  --topbar-bg: #fafafa;
+  --content-bg: #f0f0f0;
+  --muted2: #d0d0d0;
+  --hover-nav-text: #666;
+  --hover-nav-bg: rgba(156,197,43,0.06);
+  --active-nav-bg: rgba(156,197,43,0.1);
+  --active-nav-shadow: rgba(156,197,43,0.1);
+  --tooltip-bg: #f0f0f0;
+  --dropdown-bg: #f5f5f5;
+  --hover-item-bg: rgba(0,0,0,0.04);
+  --avatar-gradient: linear-gradient(135deg,#ddd,#ccc);
+  --profile-avatar-gradient: linear-gradient(135deg,#d9d9d9,#c9c9c9);
+  --sidebar-shadow: 4px 0 24px rgba(0,0,0,0.1);
+  --topbar-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  --logo-glow: rgba(156,197,43,0.35);
+  --logout-color: #d9534f;
 }
 
 body[data-theme='dark'],
@@ -28,6 +47,25 @@ body[data-theme='dark'] * {
   --sub2: #3a3a3a;
   --lime: #c8f135;
   --lime-dim: rgba(200,241,53,.13);
+  --lime-glow: rgba(200,245,61,0.15);
+  --lime-border: rgba(200,245,61,0.18);
+  --sidebar-bg: #0c0d0f;
+  --topbar-bg: #0e0f12;
+  --content-bg: #0a0b0d;
+  --muted2: #3a3d4a;
+  --hover-nav-text: #8a9080;
+  --hover-nav-bg: rgba(200,245,61,0.06);
+  --active-nav-bg: rgba(200,245,61,0.1);
+  --active-nav-shadow: rgba(200,245,61,0.1);
+  --tooltip-bg: #1a1c22;
+  --dropdown-bg: #141618;
+  --hover-item-bg: rgba(255,255,255,0.04);
+  --avatar-gradient: linear-gradient(135deg,#2a3a10,#1c2a08);
+  --profile-avatar-gradient: linear-gradient(135deg,#2a2d36,#1a1c22);
+  --sidebar-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  --topbar-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  --logo-glow: rgba(200,245,61,0.35);
+  --logout-color: #ff6b6b;
 }
 
 /* Fallback for HTML element (secondary selector) */
@@ -43,6 +81,25 @@ html[data-theme='light'] {
   --sub2: #aaa;
   --lime: #9cc52b;
   --lime-dim: rgba(156,197,43,0.13);
+  --lime-glow: rgba(156,197,43,0.15);
+  --lime-border: rgba(156,197,43,0.18);
+  --sidebar-bg: #f5f5f5;
+  --topbar-bg: #fafafa;
+  --content-bg: #f0f0f0;
+  --muted2: #d0d0d0;
+  --hover-nav-text: #666;
+  --hover-nav-bg: rgba(156,197,43,0.06);
+  --active-nav-bg: rgba(156,197,43,0.1);
+  --active-nav-shadow: rgba(156,197,43,0.1);
+  --tooltip-bg: #f0f0f0;
+  --dropdown-bg: #f5f5f5;
+  --hover-item-bg: rgba(0,0,0,0.04);
+  --avatar-gradient: linear-gradient(135deg,#ddd,#ccc);
+  --profile-avatar-gradient: linear-gradient(135deg,#d9d9d9,#c9c9c9);
+  --sidebar-shadow: 4px 0 24px rgba(0,0,0,0.1);
+  --topbar-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  --logo-glow: rgba(156,197,43,0.35);
+  --logout-color: #d9534f;
 }
 
 html[data-theme='dark'] {
@@ -57,6 +114,25 @@ html[data-theme='dark'] {
   --sub2: #3a3a3a;
   --lime: #c8f135;
   --lime-dim: rgba(200,241,53,.13);
+  --lime-glow: rgba(200,245,61,0.15);
+  --lime-border: rgba(200,245,61,0.18);
+  --sidebar-bg: #0c0d0f;
+  --topbar-bg: #0e0f12;
+  --content-bg: #0a0b0d;
+  --muted2: #3a3d4a;
+  --hover-nav-text: #8a9080;
+  --hover-nav-bg: rgba(200,245,61,0.06);
+  --active-nav-bg: rgba(200,245,61,0.1);
+  --active-nav-shadow: rgba(200,245,61,0.1);
+  --tooltip-bg: #1a1c22;
+  --dropdown-bg: #141618;
+  --hover-item-bg: rgba(255,255,255,0.04);
+  --avatar-gradient: linear-gradient(135deg,#2a3a10,#1c2a08);
+  --profile-avatar-gradient: linear-gradient(135deg,#2a2d36,#1a1c22);
+  --sidebar-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  --topbar-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  --logo-glow: rgba(200,245,61,0.35);
+  --logout-color: #ff6b6b;
 }
 
 /* Ensure design tokens from individual pages also respect the theme */

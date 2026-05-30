@@ -8,7 +8,6 @@ import {
   KeyboardEvent,
 } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -416,8 +415,6 @@ const ChannelsPage: FC = () => {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<ChannelTab>("All");
   const [showCreate, setShowCreate] = useState(false);
-
-  useTheme();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

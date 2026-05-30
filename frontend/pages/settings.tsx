@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
+import { useTheme } from "../context/ThemeContext";
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const css = `

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../pages/useTheme";
+import { useTheme } from "../context/ThemeContext";
+import "../pages/theme.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,21 +159,21 @@ const MODES: ModeItem[] = [
 // ─── CSS-in-JS tokens ─────────────────────────────────────────────────────────
 
 const T = {
-  lime:        "#c8f53d",
-  limeDim:     "#9dc42e",
-  limeGlow:    "rgba(200,245,61,0.15)",
-  limeBorder:  "rgba(200,245,61,0.18)",
-  black:       "#07080a",
-  sidebarBg:   "#0c0d0f",
-  topbarBg:    "#0e0f12",
-  contentBg:   "#0a0b0d",
-  card:        "#131417",
-  surface:     "#181a1e",
-  border:      "#1e2024",
-  border2:     "#252830",
-  text:        "#dde0e8",
-  muted:       "#52566a",
-  muted2:      "#3a3d4a",
+  lime:        "var(--lime)",
+  limeDim:     "var(--lime-dim)",
+  limeGlow:    "var(--lime-glow)",
+  limeBorder:  "var(--lime-border)",
+  black:       "var(--bg)",
+  sidebarBg:   "var(--sidebar-bg)",
+  topbarBg:    "var(--topbar-bg)",
+  contentBg:   "var(--content-bg)",
+  card:        "var(--card)",
+  surface:     "var(--surface)",
+  border:      "var(--border)",
+  border2:     "var(--border2)",
+  text:        "var(--text)",
+  muted:       "var(--sub)",
+  muted2:      "var(--muted2)",
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -195,10 +196,10 @@ const SideNavItem: React.FC<{
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", position: "relative",
         transition: "all 0.18s ease",
-        color: active ? T.lime : hovered ? "#8a9080" : T.muted,
-        background: active ? "rgba(200,245,61,0.1)" : hovered ? "rgba(200,245,61,0.06)" : "transparent",
+        color: active ? T.lime : hovered ? "var(--hover-nav-text)" : T.muted,
+        background: active ? "var(--active-nav-bg)" : hovered ? "var(--hover-nav-bg)" : "transparent",
         border: `1px solid ${active ? T.limeBorder : hovered ? T.border : "transparent"}`,
-        boxShadow: active ? "0 0 16px rgba(200,245,61,0.1)" : "none",
+        boxShadow: active ? "0 0 16px var(--active-nav-shadow)" : "none",
       }}
     >
       {/* Active indicator */}
@@ -213,7 +214,7 @@ const SideNavItem: React.FC<{
       {/* Tooltip */}
       <div style={{
         position: "absolute", left: "calc(100% + 12px)",
-        background: "#1a1c22", border: `1px solid ${T.border2}`,
+        background: "var(--tooltip-bg)", border: `1px solid ${T.border2}`,
         color: T.text, fontSize: 12, fontWeight: 500,
         padding: "5px 10px", borderRadius: 7,
         whiteSpace: "nowrap", pointerEvents: "none",
@@ -313,7 +314,7 @@ const ProfileDropdown: React.FC = () => {
       >
         <div style={{
           width: 26, height: 26, borderRadius: 8,
-          background: "linear-gradient(135deg,#2a3a10,#1c2a08)",
+          background: "var(--avatar-gradient)",
           border: `1px solid ${T.limeBorder}`,
           display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
         }}>🧑</div>
@@ -327,7 +328,7 @@ const ProfileDropdown: React.FC = () => {
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 10px)", right: 0,
-          background: "#141618", border: `1px solid ${T.border2}`,
+          background: "var(--dropdown-bg)", border: `1px solid ${T.border2}`,
           borderRadius: 14, padding: 6, minWidth: 180, zIndex: 200,
           boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
           animation: "dropIn 0.2s cubic-bezier(0.34,1.4,0.64,1) both",
@@ -345,7 +346,7 @@ const ProfileDropdown: React.FC = () => {
                 fontSize: 13, color: T.text, cursor: "pointer",
                 transition: "background 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-item-bg)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <span style={{ color: T.muted }}>{item.icon}</span>
@@ -358,13 +359,13 @@ const ProfileDropdown: React.FC = () => {
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 12px", borderRadius: 9,
-              fontSize: 13, color: "#ff6b6b", cursor: signingOut ? "wait" : "pointer",
+            fontSize: 13, color: "var(--logout-color)", cursor: signingOut ? "wait" : "pointer",
               opacity: signingOut ? 0.7 : 1,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            <span style={{ color: "#ff6b6b" }}><Icon.Logout /></span>
+            <span style={{ color: "var(--logout-color)" }}><Icon.Logout /></span>
             {signingOut ? "Signing out..." : "Sign out"}
           </div>
         </div>
@@ -415,7 +416,7 @@ const MoodChatLayout: React.FC = () => {
         display: "flex", flexDirection: "column",
         alignItems: "center", padding: "0 0 16px",
         position: "relative", zIndex: 30,
-        boxShadow: "4px 0 24px rgba(0,0,0,0.5)",
+        boxShadow: "var(--sidebar-shadow)",
       }}>
         {/* Logo */}
         <div style={{
@@ -428,7 +429,7 @@ const MoodChatLayout: React.FC = () => {
             background: `linear-gradient(135deg, ${T.lime}, ${T.limeDim})`,
             borderRadius: 10,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, boxShadow: "0 0 20px rgba(200,245,61,0.35)",
+            fontSize: 18, boxShadow: "0 0 20px var(--logo-glow)",
           }}>💬</div>
         </div>
 
@@ -437,7 +438,7 @@ const MoodChatLayout: React.FC = () => {
           onClick={() => navigate("/profile")}
           style={{
             width: 40, height: 40, borderRadius: "50%",
-            background: "linear-gradient(135deg,#2a2d36,#1a1c22)",
+            background: "var(--profile-avatar-gradient)",
             border: `2px solid ${T.border2}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, cursor: "pointer", marginBottom: 20, position: "relative",
@@ -497,7 +498,7 @@ const MoodChatLayout: React.FC = () => {
         display: "flex", alignItems: "center",
         padding: "0 24px", gap: 16,
         position: "relative", zIndex: 20,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        boxShadow: "var(--topbar-shadow)",
         minWidth: 0,
       }}>
         {/* Page title */}

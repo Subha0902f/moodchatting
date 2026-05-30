@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider, ThemeProvider } from "../context";
 import { useAuth } from "../context/AuthContext";
+import "../pages/theme.css";
 import Login from "../pages/auth/login.tsx";
 import Dashboard from "../pages/dashboard.tsx";
 import Profile from "../pages/profile.tsx";

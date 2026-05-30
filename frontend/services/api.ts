@@ -69,7 +69,13 @@ export type RegisterPayload = {
 export type ProfileUpdatePayload = {
   name?: string;
   email?: string;
+  username?: string;
   avatarUrl?: string;
+  profilePictureUrl?: string | null;
+  bio?: string;
+  about?: string;
+  phone?: string;
+  hashtags?: string[];
 };
 
 export type MessagePayload = {
@@ -91,6 +97,34 @@ export const UserAPI = {
   me: () => apiClient.get("/users/me"),
   list: () => apiClient.get("/users"),
   update: (payload: ProfileUpdatePayload) => apiClient.put("/users/me", payload),
+  uploadProfilePicture: async (file: File, userId: string): Promise<string> => {
+    const bucket = "profile-pictures";
+    const objectPath = `${userId}/profile-picture`;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(objectPath, file, { upsert: true });
+
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+
+    const { data: urlData, error: urlError } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(objectPath);
+
+    if (urlError) throw new Error(`Failed to generate profile URL: ${urlError.message}`);
+    if (!urlData.publicUrl) throw new Error("Failed to retrieve uploaded profile URL");
+
+    return urlData.publicUrl;
+  },
+  deleteProfilePicture: async (userId: string): Promise<void> => {
+    const bucket = "profile-pictures";
+    const objectPath = `${userId}/profile-picture`;
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([objectPath]);
+
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+  },
 };
 
 export const ChatAPI = {

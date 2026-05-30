@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import "./theme.css";
-import { useTheme } from "./useTheme";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -297,8 +296,6 @@ const FriendsDashboard: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>(() => readStored("moodchat.friends", INIT_FRIENDS));
   const [requests, setRequests] = useState<Request[]>(() => readStored("moodchat.requests", INIT_REQUESTS));
   const [toastMsg, toastVis, fire] = useToast();
-
-  useTheme();
 
   useEffect(() => {
     localStorage.setItem("moodchat.friends", JSON.stringify(friends));
