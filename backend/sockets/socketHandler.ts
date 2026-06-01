@@ -15,10 +15,9 @@
  */
 
 import { Server, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../config/supabase';
-import { envConfig } from '../config/env.config';
 import { UserRole } from '../types/user.types';
+import { getUserFromAuthToken } from '../middleware/authMiddleware';
 import {
   SendMessagePayload,
   ReceivedMessagePayload,
@@ -68,25 +67,10 @@ const verifySocketToken = async (token: string): Promise<{
   avatarUrl?: string;
 } | null> => {
   try {
-    const decoded = jwt.verify(token, envConfig.jwt.secret) as {
-      id: string;
-      email: string;
-      role: UserRole;
-      fullName?: string;
-      avatarUrl?: string;
-      iat: number;
-      exp: number;
-    };
+    const user = await getUserFromAuthToken(token);
 
-    // Fetch fresh user data from database
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('id, email, full_name, role, avatar_url')
-      .eq('id', decoded.id)
-      .single();
-
-    if (error || !user) {
-      console.error('Socket auth: User not found in database');
+    if (!user) {
+      console.error('Socket auth: User not found from token');
       return null;
     }
 
@@ -94,8 +78,8 @@ const verifySocketToken = async (token: string): Promise<{
       id: user.id,
       email: user.email,
       role: user.role as UserRole,
-      fullName: user.full_name || undefined,
-      avatarUrl: user.avatar_url || undefined,
+      fullName: user.full_name,
+      avatarUrl: user.avatar_url,
     };
   } catch (error) {
     console.error('Socket auth: Token verification failed:', error);
@@ -700,10 +684,8 @@ const socketAuthMiddleware = async (
   }
 
   try {
-    const decoded = jwt.verify(token, envConfig.jwt.secret);
-    if (!decoded || typeof decoded !== 'object' || !('id' in decoded)) {
-      throw new Error('Invalid token payload');
-    }
+    const user = await getUserFromAuthToken(token);
+    if (!user) throw new Error('Invalid token payload');
     next();
   } catch (error) {
     const err = error as Error & { data?: unknown };

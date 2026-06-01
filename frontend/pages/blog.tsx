@@ -375,10 +375,17 @@ const ReadBlogs: FC<{ blogs: Blog[]; savedIds: Set<string>; onSave: (id: string)
 
       {/* Blog cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 40 }}>
-        {filtered.length === 0
-          ? <div style={{ textAlign: "center", padding: "40px 0", color: C.sub, fontSize: 14 }}><div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>No posts found</div>
-          : filtered.map(b => <BlogCard key={b.id} blog={b} saved={savedIds.has(b.id)} onSave={onSave} onRead={onRead} />)
-        }
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: C.sub, fontSize: 14 }}>
+            <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
+            {search.trim()
+              ? "No posts found"
+              : "No blogs available yet. Create your first blog."
+            }
+          </div>
+        ) : (
+          filtered.map(b => <BlogCard key={b.id} blog={b} saved={savedIds.has(b.id)} onSave={onSave} onRead={onRead} />)
+        )}
       </div>
 
       {/* Saved section */}
@@ -423,30 +430,47 @@ const BlogSystem: FC = () => {
   const [savedIds, setSavedIds]     = useState<Set<string>>(new Set());
   const [readingBlog, setReading]   = useState<Blog | null>(null);
   const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
   const [toast, fireToast]          = useToast();
 
   useEffect(() => {
     let mounted = true;
 
-    Promise.all([BlogAPI.list(), BlogAPI.saved()])
-      .then(([blogResponse, savedResponse]) => {
-        if (!mounted) return;
+    const loadBlogs = async () => {
+      setLoading(true);
+      setError(null);
 
+      try {
+        const blogResponse = await BlogAPI.list();
         const loadedBlogs = (blogResponse.data?.data ?? []).map(mapApiBlog);
-        const loadedSaved = (savedResponse.data?.data ?? []).map(mapApiBlog);
+
+        let loadedSaved: Blog[] = [];
+        try {
+          const savedResponse = await BlogAPI.saved();
+          loadedSaved = (savedResponse.data?.data ?? []).map(mapApiBlog);
+        } catch (savedError: any) {
+          if (savedError?.response?.status !== 401) {
+            console.error("[blog-ui] failed to load saved blogs:", savedError);
+          }
+        }
+
+        if (!mounted) return;
 
         setBlogs(loadedBlogs);
         setSavedIds(new Set(loadedSaved.map((blog: Blog) => blog.id)));
         console.log(`[blog-ui] loaded ${loadedBlogs.length} blog(s), ${loadedSaved.length} saved`);
-      })
-      .catch((error) => {
-        console.error("[blog-ui] failed to load blogs:", error);
+      } catch (fetchError: any) {
+        console.error("[blog-ui] failed to load blogs:", fetchError);
+        if (!mounted) return;
         setBlogs([]);
+        setError(fetchError?.response?.data?.message || fetchError.message || "Failed to load blogs.");
         fireToast("Could not load blogs from the server", "error");
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    };
+
+    loadBlogs();
 
     return () => {
       mounted = false;
@@ -524,10 +548,22 @@ const BlogSystem: FC = () => {
 
       {/* Page content */}
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "40px 24px 80px", position: "relative", zIndex: 1 }}>
-        {tab === "create"
-          ? <CreateBlog onPublish={publish} />
-          : <ReadBlogs blogs={blogs} savedIds={savedIds} onSave={toggleSave} onRead={setReading} />
-        }
+        {tab === "create" ? (
+          <CreateBlog onPublish={publish} />
+        ) : loading ? (
+          <div style={{ padding: 40, borderRadius: 20, background: C.card, border: `1px solid ${C.border}`, color: C.sub, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>⏳</div>
+            <div style={{ fontSize: 15, lineHeight: 1.7 }}>Loading blog posts... Please wait.</div>
+          </div>
+        ) : error ? (
+          <div style={{ padding: 40, borderRadius: 20, background: C.card, border: `1px solid ${C.red}`, color: C.red, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>⚠️</div>
+            <div style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 14 }}>Unable to load blogs.</div>
+            <div style={{ fontSize: 13, color: C.sub }}>{error}</div>
+          </div>
+        ) : (
+          <ReadBlogs blogs={blogs} savedIds={savedIds} onSave={toggleSave} onRead={setReading} />
+        )}
       </div>
 
       {/* Reading modal */}

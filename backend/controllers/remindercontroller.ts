@@ -8,7 +8,11 @@ interface RequestWithUser extends Request {
   user?: User;
 }
 
-const DEMO_USER_ID = "c91f2c3a-5c3c-4c3c-8c3c-3c3c3c3c3c3c";
+const requireUserId = (req: RequestWithUser) => {
+  const userId = req.user?.id;
+  if (!userId) throw createHttpError(401, "Authentication required");
+  return userId;
+};
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
@@ -98,9 +102,9 @@ const parseReminderFromChat = (text: string): Partial<{
 
 export const getAllReminders = async (req: RequestWithUser, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = parseInt(req.query.offset as string) || 0;
-    const reminders = await ReminderModel.getAll(limit, offset);
+    const userId = requireUserId(req);
+    const reminders = await ReminderModel.getByUser(userId);
+    console.log(`[reminders] fetched ${reminders.length} reminder(s) for user ${userId}`);
     res.status(200).json({ success: true, data: reminders });
   } catch (error: any) {
     sendRouteError(res, error);
@@ -109,10 +113,14 @@ export const getAllReminders = async (req: RequestWithUser, res: Response) => {
 
 export const getReminderById = async (req: RequestWithUser, res: Response) => {
   try {
+    const userId = requireUserId(req);
     const reminderId = req.params.reminderId as string;
     const reminder = await ReminderModel.getById(reminderId);
     if (!reminder) {
       throw createHttpError(404, "Reminder not found");
+    }
+    if (reminder.userId !== userId) {
+      throw createHttpError(403, "You can only access your own reminders");
     }
     res.status(200).json({ success: true, data: reminder });
   } catch (error: any) {
@@ -122,7 +130,7 @@ export const getReminderById = async (req: RequestWithUser, res: Response) => {
 
 export const createReminder = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const { title, description, dueDate, dueTime, category, priority, isRecurring, recurrenceType, recurrenceEndDate, tags } = req.body;
 
     if (!title || !dueDate) {
@@ -151,7 +159,13 @@ export const createReminder = async (req: RequestWithUser, res: Response) => {
 
 export const updateReminder = async (req: RequestWithUser, res: Response) => {
   try {
+    const userId = requireUserId(req);
     const reminderId = req.params.reminderId as string;
+    const existing = await ReminderModel.getById(reminderId);
+    if (!existing) throw createHttpError(404, "Reminder not found");
+    if (existing.userId !== userId) {
+      throw createHttpError(403, "You can only update your own reminders");
+    }
     const updatedReminder = await ReminderModel.update(reminderId, req.body);
     res.status(200).json({ success: true, data: updatedReminder });
   } catch (error: any) {
@@ -161,7 +175,13 @@ export const updateReminder = async (req: RequestWithUser, res: Response) => {
 
 export const deleteReminder = async (req: RequestWithUser, res: Response) => {
   try {
+    const userId = requireUserId(req);
     const reminderId = req.params.reminderId as string;
+    const existing = await ReminderModel.getById(reminderId);
+    if (!existing) throw createHttpError(404, "Reminder not found");
+    if (existing.userId !== userId) {
+      throw createHttpError(403, "You can only delete your own reminders");
+    }
     await ReminderModel.delete(reminderId);
     res.status(200).json({ success: true, message: "Reminder deleted" });
   } catch (error: any) {
@@ -173,7 +193,7 @@ export const deleteReminder = async (req: RequestWithUser, res: Response) => {
 
 export const chatbotCreateReminder = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const { message } = req.body;
 
     if (!message) {
@@ -209,7 +229,7 @@ export const chatbotCreateReminder = async (req: RequestWithUser, res: Response)
 
 export const listUpcomingReminders = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const days = parseInt(req.query.days as string) || 7;
     const reminders = await ReminderModel.getUpcoming(userId, days);
     res.status(200).json({ success: true, data: reminders });
@@ -220,7 +240,7 @@ export const listUpcomingReminders = async (req: RequestWithUser, res: Response)
 
 export const getUserReminders = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const reminders = await ReminderModel.getByUser(userId);
     res.status(200).json({ success: true, data: reminders });
   } catch (error: any) {
@@ -230,7 +250,7 @@ export const getUserReminders = async (req: RequestWithUser, res: Response) => {
 
 export const getRemindersByStatus = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const status = req.params.status as ReminderStatus;
 
     const validStatuses: ReminderStatus[] = ["pending", "completed", "overdue", "cancelled"];
@@ -247,7 +267,7 @@ export const getRemindersByStatus = async (req: RequestWithUser, res: Response) 
 
 export const getRemindersByCategory = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const category = req.params.category as ReminderCategory;
 
     const validCategories: ReminderCategory[] = ["personal", "work", "health", "shopping", "finance", "other"];
@@ -264,7 +284,7 @@ export const getRemindersByCategory = async (req: RequestWithUser, res: Response
 
 export const getOverdueReminders = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const reminders = await ReminderModel.getOverdue(userId);
     res.status(200).json({ success: true, data: reminders });
   } catch (error: any) {
@@ -274,7 +294,13 @@ export const getOverdueReminders = async (req: RequestWithUser, res: Response) =
 
 export const markReminderCompleted = async (req: RequestWithUser, res: Response) => {
   try {
+    const userId = requireUserId(req);
     const reminderId = req.params.reminderId as string;
+    const existing = await ReminderModel.getById(reminderId);
+    if (!existing) throw createHttpError(404, "Reminder not found");
+    if (existing.userId !== userId) {
+      throw createHttpError(403, "You can only update your own reminders");
+    }
     const completed = await ReminderModel.markCompleted(reminderId);
     res.status(200).json({ success: true, message: "Reminder marked as completed", data: completed });
   } catch (error: any) {
@@ -284,7 +310,7 @@ export const markReminderCompleted = async (req: RequestWithUser, res: Response)
 
 export const searchReminders = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const query = req.query.q as string;
 
     if (!query) {
@@ -300,7 +326,7 @@ export const searchReminders = async (req: RequestWithUser, res: Response) => {
 
 export const getRemindersByTag = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
     const tag = req.params.tag as string;
     const reminders = await ReminderModel.getByTag(userId, tag);
     res.status(200).json({ success: true, data: reminders });
@@ -311,7 +337,7 @@ export const getRemindersByTag = async (req: RequestWithUser, res: Response) => 
 
 export const getReminderStats = async (req: RequestWithUser, res: Response) => {
   try {
-    const userId = req.user?.id || DEMO_USER_ID;
+    const userId = requireUserId(req);
 
     const pending = await ReminderModel.getByStatus(userId, "pending");
     const completed = await ReminderModel.getByStatus(userId, "completed");

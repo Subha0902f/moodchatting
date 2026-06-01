@@ -14,22 +14,22 @@ import {
   changeBlogStatus,
   checkSavedStatus,
 } from "../controllers/blogcontroller";
-// import { protect } from "../middleware/authMiddleware"; // Assumes auth middleware exists
+import { protect } from "../middleware/authMiddleware";
 
 const router = Router();
 
 router.get("/", getAllBlogs);
-router.post("/", createBlog); // protect,
+router.post("/", protect, createBlog);
 router.get("/search", searchBlogs);
-router.get("/saved", getSavedBlogs); // protect,
+router.get("/saved", protect, getSavedBlogs);
 router.get("/author/:authorId", getBlogsByAuthor);
 router.get("/tags/:tag", getBlogsByTag);
 router.get("/:blogId", getBlogById);
-router.patch("/:blogId", updateBlog); // protect,
-router.delete("/:blogId", deleteBlog); // protect,
-router.post("/:blogId/save", saveBlog); // protect,
-router.delete("/:blogId/unsave", unsaveBlog); // protect,
-router.get("/:blogId/is-saved", checkSavedStatus); // protect,
-router.patch("/:blogId/status", changeBlogStatus); // protect,
+router.patch("/:blogId", protect, updateBlog);
+router.delete("/:blogId", protect, deleteBlog);
+router.post("/:blogId/save", protect, saveBlog);
+router.delete("/:blogId/unsave", protect, unsaveBlog);
+router.get("/:blogId/is-saved", protect, checkSavedStatus);
+router.patch("/:blogId/status", protect, changeBlogStatus);
 
 export default router;

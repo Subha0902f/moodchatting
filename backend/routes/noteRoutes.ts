@@ -38,9 +38,6 @@ router.post("/", async (req: RequestWithUser, res: Response) => {
       userId,
       title,
       content,
-      color: req.body?.color,
-      isPinned: req.body?.isPinned,
-      tags: Array.isArray(req.body?.tags) ? req.body.tags : [],
     });
 
     console.log(`[notes] inserted note ${note.id} for user ${userId}`);
@@ -63,9 +60,6 @@ router.put("/:id", async (req: RequestWithUser, res: Response) => {
     const note = await noteModel.update(noteId, {
       title: req.body?.title,
       content: req.body?.content,
-      color: req.body?.color,
-      isPinned: req.body?.isPinned,
-      tags: req.body?.tags,
     });
 
     console.log(`[notes] updated note ${note.id} for user ${userId}`);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./theme.css";
 import { useTheme } from "../context/ThemeContext";
+import { ReminderAPI } from "../services/api";
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const css = `
@@ -565,6 +566,13 @@ const loadSettings = (): SettingsState => {
   }
 };
 
+const mapApiReminder = (reminder: any): Reminder => ({
+  id: String(reminder.id),
+  date: reminder.dueDate || reminder.due_date || "",
+  time: reminder.dueTime || reminder.due_time || "",
+  msg: reminder.title || reminder.description || "Reminder",
+});
+
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
 function CheckIcon() {
   return (
@@ -629,6 +637,7 @@ export default function SettingsPanel() {
   const [reminders, setReminders] = useState<Reminder[]>(stored.reminders);
   const [toast, setToast] = useState<Reminder | null>(null);
   const [saved, setSaved] = useState(false);
+  const [reminderError, setReminderError] = useState<string | null>(null);
 
   // Sync local theme with global theme when global changes
   useEffect(() => {
@@ -645,13 +654,61 @@ export default function SettingsPanel() {
     }));
   }, [visibility, picVisibility, theme, modeUsers, reminders]);
 
-  const addReminder = () => {
+  useEffect(() => {
+    let mounted = true;
+
+    ReminderAPI.list()
+      .then((response) => {
+        if (!mounted) return;
+        const loadedReminders = (response.data?.data ?? []).map(mapApiReminder);
+        setReminders(loadedReminders);
+        setReminderError(null);
+        console.log(`[settings-ui] loaded ${loadedReminders.length} reminder(s)`);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        console.error("[settings-ui] failed to load reminders:", error);
+        setReminderError(error?.response?.data?.message || error.message || "Unable to load reminders");
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const addReminder = async () => {
     if (!remDate || !remTime) return;
-    const r: Reminder = { id: Date.now().toString(), date: remDate, time: remTime, msg: remMsg || "Hey! You set a reminder for this moment." };
-    setReminders(p => [r, ...p]);
-    setToast(r);
-    setRemDate(""); setRemTime(""); setRemMsg("");
-    setTimeout(() => setToast(null), 6000);
+    try {
+      const message = remMsg || "Hey! You set a reminder for this moment.";
+      const response = await ReminderAPI.create({
+        title: message,
+        description: message,
+        dueDate: remDate,
+        dueTime: remTime,
+        category: "personal",
+        priority: "medium",
+      });
+      const r = mapApiReminder(response.data?.data);
+      setReminders(p => [r, ...p.filter((entry) => entry.id !== r.id)]);
+      setToast(r);
+      setReminderError(null);
+      setRemDate(""); setRemTime(""); setRemMsg("");
+      setTimeout(() => setToast(null), 6000);
+    } catch (error: any) {
+      console.error("[settings-ui] reminder create failed:", error);
+      setReminderError(error?.response?.data?.message || error.message || "Unable to create reminder");
+    }
+  };
+
+  const deleteReminder = async (id: string) => {
+    try {
+      await ReminderAPI.delete(id);
+      setReminders(p => p.filter(x => x.id !== id));
+      setReminderError(null);
+    } catch (error: any) {
+      console.error("[settings-ui] reminder delete failed:", error);
+      setReminderError(error?.response?.data?.message || error.message || "Unable to delete reminder");
+    }
   };
 
   const saveSettings = () => {
@@ -830,6 +887,12 @@ export default function SettingsPanel() {
                 </button>
               </div>
 
+              {reminderError && (
+                <div className="reminder-msg" style={{ color: "var(--danger)", whiteSpace: "normal" }}>
+                  {reminderError}
+                </div>
+              )}
+
               {reminders.length > 0 && (
                 <div className="reminders-list">
                   {reminders.map(r => (
@@ -840,7 +903,7 @@ export default function SettingsPanel() {
                         <div className="reminder-msg">{r.msg}</div>
                       </div>
                       <div className="reminder-trigger">Bot trigger</div>
-                      <button className="reminder-del" onClick={()=>setReminders(p=>p.filter(x=>x.id!==r.id))}>
+                      <button className="reminder-del" onClick={()=>deleteReminder(r.id)}>
                         <TrashIcon/>
                       </button>
                     </div>

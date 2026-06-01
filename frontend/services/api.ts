@@ -1,7 +1,19 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import { supabase } from "./supabaseclient";
 
-const API_BASE_URL = "http://localhost:5000";
+const getEnvVar = (key: string): string | undefined => {
+  try {
+    return (import.meta as any).env?.[key] as string | undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const API_BASE_URL =
+  (getEnvVar("VITE_API_URL") || "").replace(/\/+$/, "") ||
+  (typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : "http://localhost:5000");
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -17,11 +29,14 @@ const getStoredAuthToken = () => {
 };
 
 const getAuthToken = async () => {
-  const storedToken = getStoredAuthToken();
-  if (storedToken) return storedToken;
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return data.session.access_token;
+  } catch (error) {
+    console.warn("[api] Supabase session lookup failed, continuing without token", error);
+  }
 
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  return getStoredAuthToken();
 };
 
 export const setAuthToken = (token: string | null) => {
@@ -48,6 +63,12 @@ apiClient.interceptors.request.use(async (config: any) => {
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error) => {
+    const method = error.config?.method?.toUpperCase?.() || "REQUEST";
+    const url = `${error.config?.baseURL || ""}${error.config?.url || ""}`;
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message;
+    console.error(`[api] ${method} ${url} failed${status ? ` (${status})` : ""}: ${message}`);
+
     if (error.response?.status === 401) {
       setAuthToken(null);
     }
@@ -101,17 +122,16 @@ export const UserAPI = {
     const bucket = "profile-pictures";
     const objectPath = `${userId}/profile-picture`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(objectPath, file, { upsert: true });
 
     if (error) throw new Error(`Upload failed: ${error.message}`);
 
-    const { data: urlData, error: urlError } = supabase.storage
+    const { data: urlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(objectPath);
 
-    if (urlError) throw new Error(`Failed to generate profile URL: ${urlError.message}`);
     if (!urlData.publicUrl) throw new Error("Failed to retrieve uploaded profile URL");
 
     return urlData.publicUrl;
@@ -172,6 +192,32 @@ export const NoteAPI = {
   update: (noteId: string, payload: { title?: string; content?: string }) =>
     apiClient.put(`/notes/${noteId}`, payload),
   delete: (noteId: string) => apiClient.delete(`/notes/${noteId}`),
+};
+
+export type ReminderPayload = {
+  title: string;
+  description?: string;
+  dueDate: string;
+  dueTime?: string;
+  category?: "personal" | "work" | "health" | "shopping" | "finance" | "other";
+  priority?: "low" | "medium" | "high";
+  isRecurring?: boolean;
+  recurrenceType?: "none" | "daily" | "weekly" | "monthly" | "yearly";
+  recurrenceEndDate?: string;
+  tags?: string[];
+};
+
+export const ReminderAPI = {
+  list: () => apiClient.get("/reminders"),
+  upcoming: (days?: number) => apiClient.get("/reminders/list/upcoming", { params: { days } }),
+  stats: () => apiClient.get("/reminders/stats/summary"),
+  search: (q: string) => apiClient.get("/reminders/search", { params: { q } }),
+  create: (payload: ReminderPayload) => apiClient.post("/reminders", payload),
+  chatbotCreate: (message: string) => apiClient.post("/reminders/chatbot/create", { message }),
+  update: (reminderId: string, payload: Partial<ReminderPayload>) =>
+    apiClient.patch(`/reminders/${reminderId}`, payload),
+  complete: (reminderId: string) => apiClient.patch(`/reminders/${reminderId}/complete`),
+  delete: (reminderId: string) => apiClient.delete(`/reminders/${reminderId}`),
 };
 
 export default apiClient;

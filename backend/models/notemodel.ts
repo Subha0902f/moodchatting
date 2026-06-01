@@ -11,9 +11,6 @@ export interface Note {
   userId: string;
   title: string;
   content: string;
-  color: NoteColor;
-  isPinned: boolean;
-  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -22,17 +19,11 @@ export interface CreateNotePayload {
   userId: string;
   title: string;
   content?: string;
-  color?: NoteColor;
-  isPinned?: boolean;
-  tags?: string[];
 }
 
 export interface UpdateNotePayload {
   title?: string;
   content?: string;
-  color?: NoteColor;
-  isPinned?: boolean;
-  tags?: string[];
 }
 
 // ─── Note Model ────────────────────────────────────────────────────────────────
@@ -49,9 +40,6 @@ const noteModel = {
           user_id: payload.userId,
           title: payload.title,
           content: payload.content || "",
-          color: payload.color || "default",
-          is_pinned: payload.isPinned !== undefined ? payload.isPinned : false,
-          tags: payload.tags || [],
         },
       ])
       .select()
@@ -65,9 +53,6 @@ const noteModel = {
       userId: data.user_id,
       title: data.title,
       content: data.content,
-      color: data.color,
-      isPinned: data.is_pinned,
-      tags: data.tags,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     } as Note;
@@ -107,7 +92,6 @@ const noteModel = {
     const { data, error } = await supabase
       .from("notes")
       .select("*")
-      .order("is_pinned", { ascending: false })
       .order("updated_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -119,9 +103,6 @@ const noteModel = {
       userId: note.user_id,
       title: note.title,
       content: note.content,
-      color: note.color,
-      isPinned: note.is_pinned,
-      tags: note.tags,
       createdAt: note.created_at,
       updatedAt: note.updated_at,
     })) as Note[];
@@ -134,7 +115,6 @@ const noteModel = {
       .from("notes")
       .select("*")
       .eq("user_id", userId)
-      .order("is_pinned", { ascending: false })
       .order("updated_at", { ascending: false });
 
     if (error) throw new Error(`noteModel.getByUser: ${error.message}`);
@@ -145,9 +125,6 @@ const noteModel = {
       userId: note.user_id,
       title: note.title,
       content: note.content,
-      color: note.color,
-      isPinned: note.is_pinned,
-      tags: note.tags,
       createdAt: note.created_at,
       updatedAt: note.updated_at,
     })) as Note[];
@@ -156,53 +133,15 @@ const noteModel = {
   // ── Get pinned notes for a user ─────────────────────────────────────────
 
   async getPinned(userId: string): Promise<Note[]> {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_pinned", true)
-      .order("updated_at", { ascending: false });
-
-    if (error) throw new Error(`noteModel.getPinned: ${error.message}`);
-
-    // Transform snake_case to camelCase
-    return ((data ?? []) as any[]).map((note) => ({
-      id: note.id,
-      userId: note.user_id,
-      title: note.title,
-      content: note.content,
-      color: note.color,
-      isPinned: note.is_pinned,
-      tags: note.tags,
-      createdAt: note.created_at,
-      updatedAt: note.updated_at,
-    })) as Note[];
+    // Pinned notes are not available in the current notes schema.
+    return [];
   },
 
   // ── Get notes by tag ────────────────────────────────────────────────────
 
   async getByTag(userId: string, tag: string): Promise<Note[]> {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("user_id", userId)
-      .contains("tags", [tag])
-      .order("updated_at", { ascending: false });
-
-    if (error) throw new Error(`noteModel.getByTag: ${error.message}`);
-
-    // Transform snake_case to camelCase
-    return ((data ?? []) as any[]).map((note) => ({
-      id: note.id,
-      userId: note.user_id,
-      title: note.title,
-      content: note.content,
-      color: note.color,
-      isPinned: note.is_pinned,
-      tags: note.tags,
-      createdAt: note.created_at,
-      updatedAt: note.updated_at,
-    })) as Note[];
+    // Tags are not supported by the current notes schema.
+    return [];
   },
 
   // ── Search notes ────────────────────────────────────────────────────────
@@ -223,9 +162,6 @@ const noteModel = {
       userId: note.user_id,
       title: note.title,
       content: note.content,
-      color: note.color,
-      isPinned: note.is_pinned,
-      tags: note.tags,
       createdAt: note.created_at,
       updatedAt: note.updated_at,
     })) as Note[];
@@ -237,9 +173,6 @@ const noteModel = {
     const updateData: any = {};
     if (payload.title !== undefined) updateData.title = payload.title;
     if (payload.content !== undefined) updateData.content = payload.content;
-    if (payload.color !== undefined) updateData.color = payload.color;
-    if (payload.isPinned !== undefined) updateData.is_pinned = payload.isPinned;
-    if (payload.tags !== undefined) updateData.tags = payload.tags;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -279,12 +212,7 @@ const noteModel = {
   // ── Toggle pin status ──────────────────────────────────────────────────
 
   async togglePin(noteId: string): Promise<Note> {
-    const currentNote = await this.getById(noteId);
-    if (!currentNote) {
-      throw new Error("Note not found");
-    }
-
-    return this.update(noteId, { isPinned: !currentNote.isPinned });
+    throw new Error("Pinned notes are not supported by the current notes schema.");
   },
 };
 

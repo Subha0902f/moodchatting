@@ -29,7 +29,7 @@ import {
   globalErrorHandler,
   notFoundHandler
 } from './middleware/errorMiddleware';
-import { protect } from './middleware/authMiddleware';
+import { protect, optionalAuth } from './middleware/authMiddleware';
 
 // Import config
 import { envConfig } from './config/env.config';
@@ -43,10 +43,30 @@ const app: Application = express();
 const httpServer = createServer(app);
 const port = envConfig.port;
 
+const configuredFrontendUrls = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isAllowedOrigin = (origin?: string) => {
+  if (!origin) return true;
+  if (configuredFrontendUrls.includes(origin)) return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+};
+
+const corsOrigin = (
+  origin: string | undefined,
+  callback: (error: Error | null, allow?: boolean) => void
+) => {
+  if (isAllowedOrigin(origin)) return callback(null, true);
+  console.warn(`[cors] blocked origin: ${origin}`);
+  return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+};
+
 // Initialize Socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -62,7 +82,7 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -139,7 +159,7 @@ app.use('/messages', protect, messageRoutes);
 app.use('/channels', protect, channelRoutes);
 
 // Blog routes
-app.use('/blog', protect, blogRoutes);
+app.use('/blog', optionalAuth, blogRoutes);
 
 // Note routes
 app.use('/notes', protect, noteRoutes);
@@ -224,19 +244,60 @@ app.use(globalErrorHandler);
  * Tests database connection and starts listening on the configured port
  */
 const startServer = async () => {
-  try {
-    // Test Supabase connection
-    await testSupabaseConnection();
+  // Attempt to start server and gracefully handle EADDRINUSE by
+  // trying the next available port(s).
+  const desiredPort = port;
+  let tryPort = desiredPort;
+  const maxAttempts = 5;
+  let attempts = 0;
 
-    httpServer.listen(port, () => {
-      console.log(`✅ MoodChat backend server running on port ${port}`);
-      console.log(`📡 Environment: ${envConfig.nodeEnv}`);
-      console.log(`🔗 Health check: http://localhost:${port}/health`);
-      console.log(`📊 API status: http://localhost:${port}/api/status`);
-    });
+  try {
+    // Test Supabase connection first
+    await testSupabaseConnection();
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('❌ Failed to connect to Supabase:', error);
     process.exit(1);
+  }
+
+  // Attach an error handler before listening so EADDRINUSE is caught
+  httpServer.on('error', (err: any) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`⚠️ Port ${tryPort} is already in use.`);
+      attempts += 1;
+      if (attempts > maxAttempts) {
+        console.error(`❌ Port conflict: tried ${maxAttempts} ports starting at ${desiredPort}.`);
+        console.error('Kill the process listening on the port or set a different PORT in your environment.');
+        process.exit(1);
+      }
+      // try the next port
+      tryPort++;
+      console.log(`➡️ Trying port ${tryPort} (attempt ${attempts}/${maxAttempts})...`);
+      // small delay then attempt to listen again
+      setTimeout(() => {
+        httpServer.listen(tryPort, () => {
+          console.log(`✅ MoodChat backend server running on port ${tryPort}`);
+          console.log(`📡 Environment: ${envConfig.nodeEnv}`);
+          console.log(`🔗 Health check: http://localhost:${tryPort}/health`);
+          console.log(`📊 API status: http://localhost:${tryPort}/api/status`);
+        });
+      }, 200);
+      return;
+    }
+    console.error('❌ Server error:', err);
+    process.exit(1);
+  });
+
+  // First listen attempt
+  try {
+    httpServer.listen(tryPort, () => {
+      console.log(`✅ MoodChat backend server running on port ${tryPort}`);
+      console.log(`📡 Environment: ${envConfig.nodeEnv}`);
+      console.log(`🔗 Health check: http://localhost:${tryPort}/health`);
+      console.log(`📊 API status: http://localhost:${tryPort}/api/status`);
+    });
+  } catch (error: any) {
+    // In some environments listen may throw synchronously; let the 'error' handler manage EADDRINUSE
+    console.error('❌ Failed to start server (listen threw):', error);
   }
 };
 

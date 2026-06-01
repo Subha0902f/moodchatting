@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider, ThemeProvider } from "../context";
 import { useAuth } from "../context/AuthContext";
+import { SocketProvider } from "../context/SocketContext";
 import "../pages/theme.css";
 import Login from "../pages/auth/login.tsx";
 import Dashboard from "../pages/dashboard.tsx";
@@ -24,7 +25,22 @@ function RequireAuth() {
     );
   }
 
-  return session ? <MoodChatLayout /> : <Navigate to="/login" replace />;
+  return session ? (
+    <SocketProvider
+      authToken={session.access_token}
+      user={{
+        id: session.user.id,
+        email: session.user.email || "",
+        fullName:
+          (session.user.user_metadata?.full_name as string | undefined) ||
+          (session.user.user_metadata?.name as string | undefined) ||
+          (session.user.user_metadata?.username as string | undefined),
+        avatarUrl: session.user.user_metadata?.avatar_url as string | undefined,
+      }}
+    >
+      <MoodChatLayout />
+    </SocketProvider>
+  ) : <Navigate to="/login" replace />;
 }
 
 function App() {

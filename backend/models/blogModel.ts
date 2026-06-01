@@ -1,4 +1,4 @@
-// server/src/models/blogModel.ts
+﻿// server/src/models/blogModel.ts
 
 import { supabaseAdmin as supabase } from "../config/supabase";
 
@@ -9,39 +9,20 @@ export type BlogStatus = "draft" | "published" | "archived";
 
 export interface Blog {
   id: string;
-  author_id: string; 
   title: string;
   content: string;
-  preview: string;
-  type: BlogType;
-  status: BlogStatus;
-  tags: string[];
-  read_time: number;        // in minutes
-  view_count: number;
-  save_count: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateBlogPayload {
-  author_id: string;
   title: string;
   content: string;
-  preview: string;
-  type: BlogType;
-  status: BlogStatus;
-  tags: string[];
-  read_time: number;
 }
 
 export interface UpdateBlogPayload {
   title?: string;
   content?: string;
-  preview?: string;
-  type?: BlogType;
-  status?: BlogStatus;
-  tags?: string[];
-  read_time?: number;
 }
 
 export interface SavedBlog {
@@ -57,134 +38,103 @@ export interface BlogWithAuthor extends Blog {
     username: string;
     avatar_url: string | null;
   };
+  preview: string;
+  tags: string[];
+  type: BlogType;
+  read_time: number;
 }
 
-// ─── Blog Model ────────────────────────────────────────────────────────────────
+const mapBlogsWithAuthors = async (blogs: Blog[]): Promise<BlogWithAuthor[]> => {
+  if (!blogs.length) return [];
+
+  return blogs.map((blog) => ({
+    ...blog,
+    author: {
+      id: "",
+      username: "MoodChat User",
+      avatar_url: null,
+    },
+    preview: blog.content?.slice(0, 160) || "",
+    tags: [],
+    type: "free",
+    read_time: Math.max(1, Math.ceil((blog.content?.trim().split(/\s+/).length || 0) / 200)),
+  }));
+};
 
 const BlogModel = {
-
-  // ── Get all blogs (published) ──────────────────────────────────────────────────
-
   async getAll(limit = 20, offset = 0): Promise<BlogWithAuthor[]> {
     const { data, error } = await supabase
       .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq("status", "published")
+      .select("id,title,content,created_at,updated_at")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw new Error(`BlogModel.getAll: ${error.message}`);
-    return (data ?? []) as BlogWithAuthor[];
+    return mapBlogsWithAuthors((data ?? []) as Blog[]);
   },
-
-  // ── Create a new blog post ──────────────────────────────────────────────────
 
   async create(payload: CreateBlogPayload): Promise<Blog> {
     const { data, error } = await supabase
       .from("blogs")
       .insert([
         {
-          author_id: payload.author_id,
           title: payload.title,
           content: payload.content,
-          preview: payload.preview,
-          type: payload.type,
-          status: payload.status,
-          tags: payload.tags,
-          read_time: payload.read_time,
-          view_count: 0,
-          save_count: 0,
         },
       ])
-      .select()
+      .select("id,title,content,created_at,updated_at")
       .single();
 
     if (error) throw new Error(`BlogModel.create: ${error.message}`);
     return data as Blog;
   },
 
-  // ── Get a single blog by ID ─────────────────────────────────────────────────
-
   async getById(blogId: string): Promise<BlogWithAuthor | null> {
     const { data, error } = await supabase
       .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
+      .select("id,title,content,created_at,updated_at")
       .eq("id", blogId)
       .single();
 
     if (error) {
-      if (error.code === "PGRST116") return null; // not found
+      if (error.code === "PGRST116") return null;
       throw new Error(`BlogModel.getById: ${error.message}`);
     }
-    return data as BlogWithAuthor;
+
+    const blog = data as Blog;
+    const [blogWithAuthor] = await mapBlogsWithAuthors([blog]);
+    return blogWithAuthor;
   },
 
-  // ── Get all published blogs (feed) ─────────────────────────────────────────
-
-  async getAll(limit = 20, offset = 0): Promise<BlogWithAuthor[]> {
+  async getByAuthor(_authorId: string, limit = 20): Promise<BlogWithAuthor[]> {
     const { data, error } = await supabase
       .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq("status", "published")
+      .select("id,title,content,created_at,updated_at")
       .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw new Error(`BlogModel.getAll: ${error.message}`);
-    return (data ?? []) as BlogWithAuthor[];
-  },
-
-  // ── Get all blogs by a specific author ──────────────────────────────────────
-
-  async getByAuthor(authorId: string): Promise<Blog[]> {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select("*")
-      .eq("author_id", authorId)
-      .order("created_at", { ascending: false });
+      .limit(limit);
 
     if (error) throw new Error(`BlogModel.getByAuthor: ${error.message}`);
-    return (data ?? []) as Blog[];
+    return mapBlogsWithAuthors((data ?? []) as Blog[]);
   },
 
-  // ── Update a blog post ──────────────────────────────────────────────────────
-
   async update(blogId: string, payload: UpdateBlogPayload): Promise<Blog> {
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (payload.title !== undefined) updateData.title = payload.title;
+    if (payload.content !== undefined) updateData.content = payload.content;
+
     const { data, error } = await supabase
       .from("blogs")
-      .update({
-        ...payload,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", blogId)
-      .select()
+      .select("id,title,content,created_at,updated_at")
       .single();
 
     if (error) throw new Error(`BlogModel.update: ${error.message}`);
     return data as Blog;
   },
-
-  // ── Delete a blog post ──────────────────────────────────────────────────────
 
   async delete(blogId: string): Promise<void> {
     const { error } = await supabase
@@ -195,31 +145,17 @@ const BlogModel = {
     if (error) throw new Error(`BlogModel.delete: ${error.message}`);
   },
 
-  // ── Search blogs by title, tag, or author username ──────────────────────────
-
   async search(query: string, limit = 20): Promise<BlogWithAuthor[]> {
     const { data, error } = await supabase
       .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq("status", "published")
-      .or(
-        `title.ilike.%${query}%,tags.cs.{${query}}`
-      )
+      .select("id,title,content,created_at,updated_at")
+      .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (error) throw new Error(`BlogModel.search: ${error.message}`);
-    return (data ?? []) as BlogWithAuthor[];
+    return mapBlogsWithAuthors((data ?? []) as Blog[]);
   },
-
-  // ── Increment view count ────────────────────────────────────────────────────
 
   async incrementViews(blogId: string): Promise<void> {
     const { error } = await supabase.rpc("increment_blog_views", {
@@ -228,8 +164,6 @@ const BlogModel = {
 
     if (error) throw new Error(`BlogModel.incrementViews: ${error.message}`);
   },
-
-  // ── Save a blog (bookmark) ──────────────────────────────────────────────────
 
   async save(userId: string, blogId: string): Promise<SavedBlog> {
     const { data, error } = await supabase
@@ -240,13 +174,9 @@ const BlogModel = {
 
     if (error) throw new Error(`BlogModel.save: ${error.message}`);
 
-    // increment save_count on blogs table
     await supabase.rpc("increment_blog_saves", { blog_id: blogId });
-
     return data as SavedBlog;
   },
-
-  // ── Unsave a blog (remove bookmark) ────────────────────────────────────────
 
   async unsave(userId: string, blogId: string): Promise<void> {
     const { error } = await supabase
@@ -257,35 +187,36 @@ const BlogModel = {
 
     if (error) throw new Error(`BlogModel.unsave: ${error.message}`);
 
-    // decrement save_count on blogs table
     await supabase.rpc("decrement_blog_saves", { blog_id: blogId });
   },
-
-  // ── Get all saved blogs for a user ─────────────────────────────────────────
 
   async getSavedByUser(userId: string): Promise<BlogWithAuthor[]> {
     const { data, error } = await supabase
       .from("saved_blogs")
-      .select(`
-        blog:blogs (
-          *,
-          author:users (
-            id,
-            username,
-            avatar_url
-          )
-        )
-      `)
+      .select("blog_id, saved_at")
       .eq("user_id", userId)
       .order("saved_at", { ascending: false });
 
     if (error) throw new Error(`BlogModel.getSavedByUser: ${error.message}`);
 
-    // unwrap the nested blog object
-    return (data ?? []).map((row: any) => row.blog) as BlogWithAuthor[];
-  },
+    const savedRows = (data ?? []) as Array<{ blog_id: string; saved_at: string }>;
+    if (!savedRows.length) return [];
 
-  // ── Check if a user has saved a blog ───────────────────────────────────────
+    const blogIds = savedRows.map((row) => row.blog_id);
+    const { data: blogs, error: blogsError } = await supabase
+      .from("blogs")
+      .select("id,title,content,created_at,updated_at")
+      .in("id", blogIds);
+
+    if (blogsError) throw new Error(`BlogModel.getSavedByUser: ${blogsError.message}`);
+
+    const blogMap = new Map((blogs ?? []).map((blog: Blog) => [blog.id, blog]));
+    const orderedBlogs = savedRows
+      .map((row) => blogMap.get(row.blog_id))
+      .filter((blog): blog is Blog => !!blog);
+
+    return mapBlogsWithAuthors(orderedBlogs);
+  },
 
   async isSaved(userId: string, blogId: string): Promise<boolean> {
     const { data, error } = await supabase
@@ -301,58 +232,23 @@ const BlogModel = {
     return !!data;
   },
 
-  // ── Get blogs by author ────────────────────────────────────────────────────
-
-  async getByAuthor(authorId: string, limit = 20): Promise<BlogWithAuthor[]> {
+  async getByTag(_tag: string, limit = 20): Promise<BlogWithAuthor[]> {
     const { data, error } = await supabase
       .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq("author_id", authorId)
-      .eq("status", "published")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (error) throw new Error(`BlogModel.getByAuthor: ${error.message}`);
-    return (data ?? []) as BlogWithAuthor[];
-  },
-
-  // ── Get blogs by tag ────────────────────────────────────────────────────────
-
-  async getByTag(tag: string, limit = 20): Promise<BlogWithAuthor[]> {
-    const { data, error } = await supabase
-      .from("blogs")
-      .select(`
-        *,
-        author:users (
-          id,
-          username,
-          avatar_url
-        )
-      `)
-      .eq("status", "published")
-      .contains("tags", [tag])
+      .select("id,title,content,created_at,updated_at")
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (error) throw new Error(`BlogModel.getByTag: ${error.message}`);
-    return (data ?? []) as BlogWithAuthor[];
+    return mapBlogsWithAuthors((data ?? []) as Blog[]);
   },
 
-  // ── Change blog status (publish / archive / draft) ──────────────────────────
-
-  async setStatus(blogId: string, status: BlogStatus): Promise<Blog> {
+  async setStatus(blogId: string, _status: BlogStatus): Promise<Blog> {
     const { data, error } = await supabase
       .from("blogs")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ updated_at: new Date().toISOString() })
       .eq("id", blogId)
-      .select()
+      .select("id,title,content,created_at,updated_at")
       .single();
 
     if (error) throw new Error(`BlogModel.setStatus: ${error.message}`);

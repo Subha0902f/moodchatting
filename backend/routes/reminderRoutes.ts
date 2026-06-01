@@ -19,31 +19,22 @@ import {
 
 const router = Router();
 
-// ─── Basic CRUD Routes ────────────────────────────────────────────────────────
+router.post("/chatbot/create", chatbotCreateReminder);
 
-router.get("/", getAllReminders);                      // Get all reminders
-router.post("/", createReminder);                      // Create reminder
-router.get("/:reminderId", getReminderById);          // Get single reminder
-router.patch("/:reminderId", updateReminder);         // Update reminder
-router.delete("/:reminderId", deleteReminder);        // Delete reminder
+router.get("/list/upcoming", listUpcomingReminders);
+router.get("/list/user", getUserReminders);
+router.get("/list/status/:status", getRemindersByStatus);
+router.get("/list/category/:category", getRemindersByCategory);
+router.get("/list/overdue", getOverdueReminders);
+router.get("/list/tags/:tag", getRemindersByTag);
+router.get("/stats/summary", getReminderStats);
+router.get("/search", searchReminders);
 
-// ─── Chatbot Routes ────────────────────────────────────────────────────────────
-
-router.post("/chatbot/create", chatbotCreateReminder); // Create reminder via natural language
-
-// ─── Advanced Query Routes ────────────────────────────────────────────────────
-
-router.get("/list/upcoming", listUpcomingReminders);   // Get upcoming reminders
-router.get("/list/user", getUserReminders);            // Get all user reminders
-router.get("/list/status/:status", getRemindersByStatus); // Get by status (pending, completed, etc)
-router.get("/list/category/:category", getRemindersByCategory); // Get by category
-router.get("/list/overdue", getOverdueReminders);      // Get overdue reminders
-router.get("/list/tags/:tag", getRemindersByTag);      // Get by tag
-router.get("/stats/summary", getReminderStats);        // Get reminder statistics
-
-// ─── Action Routes ────────────────────────────────────────────────────────────
-
-router.patch("/:reminderId/complete", markReminderCompleted); // Mark as completed
-router.get("/search", searchReminders);                // Search reminders
+router.get("/", getAllReminders);
+router.post("/", createReminder);
+router.get("/:reminderId", getReminderById);
+router.patch("/:reminderId/complete", markReminderCompleted);
+router.patch("/:reminderId", updateReminder);
+router.delete("/:reminderId", deleteReminder);
 
 export default router;

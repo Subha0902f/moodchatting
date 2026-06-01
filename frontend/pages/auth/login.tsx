@@ -106,6 +106,7 @@ const AuthContainer: React.FC = () => {
     email: "",
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [loginErrors, setLoginErrors] = useState<FormErrors<LoginForm>>({});
   const [signupErrors, setSignupErrors] = useState<FormErrors<User>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,7 +148,7 @@ const AuthContainer: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const { error } = await signIn(loginForm.email.trim(), loginForm.password);
+    const { error } = await signIn(loginForm.email.trim(), loginForm.password, rememberMe);
     setIsSubmitting(false);
 
     if (error) {
@@ -178,7 +179,8 @@ const AuthContainer: React.FC = () => {
     const { data, error } = await signUp(
       signupForm.email.trim(),
       signupForm.password,
-      signupForm.username.trim()
+      signupForm.username.trim(),
+      rememberMe
     );
     setIsSubmitting(false);
 
@@ -258,6 +260,15 @@ const AuthContainer: React.FC = () => {
             error={loginErrors.password}
             onChange={handleLoginChange}
           />
+          <label style={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={styles.checkbox}
+            />
+            Remember me
+          </label>
           <div style={styles.sep} />
           <button style={styles.btn} type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Logging in..." : "Login"}
@@ -300,6 +311,15 @@ const AuthContainer: React.FC = () => {
             error={signupErrors.password}
             onChange={handleSignupChange}
           />
+          <label style={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={styles.checkbox}
+            />
+            Remember me
+          </label>
           <div style={styles.sep} />
           <button style={styles.btn} type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Sign Up"}
@@ -453,6 +473,20 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   field: {},
+  checkboxLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 13,
+    color: "#c8f53d",
+    fontWeight: 600,
+    marginTop: -4,
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    accentColor: LIME,
+  },
   label: {
     display: "block",
     fontSize: 10.5,
