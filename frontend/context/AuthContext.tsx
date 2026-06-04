@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../services/supabaseclient";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -20,9 +20,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const initDone = useRef(false);
+  const sessionAllowed = useRef(false);
+
   useEffect(() => {
     let mounted = true;
-    const rememberMe = typeof window !== "undefined" && localStorage.getItem(REMEMBER_ME_KEY) === "true";
+    const rememberMe =
+      typeof window !== "undefined" &&
+      localStorage.getItem(REMEMBER_ME_KEY) === "true";
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      if (!initDone.current) return; // ignore all events until init settles
+
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setUser(null);
+        return;
+      }
+
+      if (sessionAllowed.current) {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+      }
+    });
 
     const initializeSession = async () => {
       try {
@@ -32,28 +53,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!rememberMe && data.session) {
           await supabase.auth.signOut();
           if (!mounted) return;
+          sessionAllowed.current = false;
           setSession(null);
           setUser(null);
         } else {
+          sessionAllowed.current = !!data.session;
           setSession(data.session ?? null);
           setUser(data.session?.user ?? null);
         }
       } catch {
         if (mounted) {
+          sessionAllowed.current = false;
           setSession(null);
           setUser(null);
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          initDone.current = true;
+          setLoading(false);
+        }
       }
     };
 
     initializeSession();
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
 
     return () => {
       mounted = false;
@@ -72,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           localStorage.removeItem(REMEMBER_ME_KEY);
         }
+        sessionAllowed.current = true;
 
         const result = await supabase.auth.signUp({
           email,
@@ -105,12 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           localStorage.removeItem(REMEMBER_ME_KEY);
         }
+        sessionAllowed.current = true;
         return supabase.auth.signInWithPassword({ email, password });
       },
       signOut: async () => {
         if (typeof window !== "undefined") {
           localStorage.removeItem(REMEMBER_ME_KEY);
         }
+        sessionAllowed.current = false;
         return supabase.auth.signOut();
       },
     }),

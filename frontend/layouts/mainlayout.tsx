@@ -4,8 +4,6 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import "../pages/theme.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type NavKey = "dashboard" | "chat" | "modes" | "channels" | "blog" | "notepad" | "settings";
 
 interface NavItem {
@@ -13,31 +11,6 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
 }
-
-interface StatCard {
-  icon: string;
-  value: string;
-  label: string;
-  delta: string;
-  up: boolean;
-}
-
-interface ActivityItem {
-  avatar: string;
-  name: string;
-  desc: string;
-  time: string;
-}
-
-interface ModeItem {
-  name: string;
-  count: number;
-  uses: number;
-  pct: number;
-  color: string;
-}
-
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
 
 const Icon = {
   Dashboard: () => (
@@ -81,11 +54,6 @@ const Icon = {
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   ),
-  Search: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" style={{ width: 15, height: 15 }}>
-      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  ),
   Bell: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ width: 17, height: 17 }}>
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -124,8 +92,6 @@ const Icon = {
   ),
 };
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: <Icon.Dashboard /> },
   { key: "chat",      label: "Chat",      icon: <Icon.Chat />      },
@@ -135,50 +101,24 @@ const NAV_ITEMS: NavItem[] = [
   { key: "notepad",   label: "Notepad",   icon: <Icon.Notepad />   },
 ];
 
-const STATS: StatCard[] = [
-  { icon: "💬", value: "1,284", label: "Total Chats",     delta: "↑ 12% this week", up: true  },
-  { icon: "⚡", value: "38",    label: "Active Modes",    delta: "↑ 5 new today",   up: true  },
-  { icon: "📡", value: "7",     label: "Channels",        delta: "↓ 1 paused",      up: false },
-  { icon: "📝", value: "56",    label: "Notepad Entries", delta: "↑ 4 today",       up: true  },
-];
-
-const ACTIVITIES: ActivityItem[] = [
-  { avatar: "🔥", name: "Rant Mode activated",    desc: "You started a new chat in Rant mode",   time: "2m ago"  },
-  { avatar: "💌", name: "Channel #vibes updated", desc: "3 new replies from your followers",     time: "18m ago" },
-  { avatar: "📝", name: "Notepad synced",          desc: "Your daily reflection was saved",       time: "1h ago"  },
-  { avatar: "✍️", name: "Blog post published",    desc: '"On quiet Sundays" — 142 views',        time: "3h ago"  },
-];
-
-const MODES: ModeItem[] = [
-  { name: "Vibe",  count: 438, uses: 438, pct: 88, color: "#c8f53d" },
-  { name: "Calm",  count: 312, uses: 312, pct: 65, color: "#60a5fa" },
-  { name: "Rant",  count: 201, uses: 201, pct: 42, color: "#f472b6" },
-  { name: "Hype",  count: 97,  uses: 97,  pct: 22, color: "#fb923c" },
-];
-
-// ─── CSS-in-JS tokens ─────────────────────────────────────────────────────────
-
 const T = {
-  lime:        "var(--lime)",
-  limeDim:     "var(--lime-dim)",
-  limeGlow:    "var(--lime-glow)",
-  limeBorder:  "var(--lime-border)",
-  black:       "var(--bg)",
-  sidebarBg:   "var(--sidebar-bg)",
-  topbarBg:    "var(--topbar-bg)",
-  contentBg:   "var(--content-bg)",
-  card:        "var(--card)",
-  surface:     "var(--surface)",
-  border:      "var(--border)",
-  border2:     "var(--border2)",
-  text:        "var(--text)",
-  muted:       "var(--sub)",
-  muted2:      "var(--muted2)",
+  lime:       "var(--lime)",
+  limeDim:    "var(--lime-dim)",
+  limeGlow:   "var(--lime-glow)",
+  limeBorder: "var(--lime-border)",
+  black:      "var(--bg)",
+  sidebarBg:  "var(--sidebar-bg)",
+  topbarBg:   "var(--topbar-bg)",
+  contentBg:  "var(--content-bg)",
+  card:       "var(--card)",
+  surface:    "var(--surface)",
+  border:     "var(--border)",
+  border2:    "var(--border2)",
+  text:       "var(--text)",
+  muted:      "var(--sub)",
+  muted2:     "var(--muted2)",
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-/** Sidebar nav link with tooltip */
 const SideNavItem: React.FC<{
   item: NavItem;
   active: boolean;
@@ -202,7 +142,6 @@ const SideNavItem: React.FC<{
         boxShadow: active ? "0 0 16px var(--active-nav-shadow)" : "none",
       }}
     >
-      {/* Active indicator */}
       {active && (
         <div style={{
           position: "absolute", left: -10, top: "50%", transform: "translateY(-50%)",
@@ -211,7 +150,6 @@ const SideNavItem: React.FC<{
         }} />
       )}
       {item.icon}
-      {/* Tooltip */}
       <div style={{
         position: "absolute", left: "calc(100% + 12px)",
         background: "var(--tooltip-bg)", border: `1px solid ${T.border2}`,
@@ -229,10 +167,8 @@ const SideNavItem: React.FC<{
   );
 };
 
-/** Theme toggle button */
 const ThemeToggle: React.FC = () => {
   const { mode, toggleTheme } = useTheme();
-
   return (
     <div
       onClick={toggleTheme}
@@ -259,7 +195,6 @@ const ThemeToggle: React.FC = () => {
   );
 };
 
-/** Profile dropdown */
 const ProfileDropdown: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -276,18 +211,16 @@ const ProfileDropdown: React.FC = () => {
   }, []);
 
   const ddItems = [
-    { icon: <Icon.User />,    label: "Profile",   to: "/profile" },
-    { icon: <Icon.Settings />, label: "Settings", to: "/settings" },
-    { icon: <Icon.Chart />,   label: "Analytics", to: "/dashboard" },
+    { icon: <Icon.User />,     label: "Profile",   to: "/profile"   },
+    { icon: <Icon.Settings />, label: "Settings",  to: "/settings"  },
+    { icon: <Icon.Chart />,    label: "Analytics", to: "/dashboard" },
   ];
 
   const handleSignOut = async () => {
     if (signingOut) return;
-
     setSigningOut(true);
     const { error } = await signOut();
     setSigningOut(false);
-
     if (!error) {
       setOpen(false);
       navigate("/login", { replace: true });
@@ -336,10 +269,7 @@ const ProfileDropdown: React.FC = () => {
           {ddItems.map((item) => (
             <div
               key={item.label}
-              onClick={() => {
-                navigate(item.to);
-                setOpen(false);
-              }}
+              onClick={() => { navigate(item.to); setOpen(false); }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 12px", borderRadius: 9,
@@ -359,7 +289,8 @@ const ProfileDropdown: React.FC = () => {
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 12px", borderRadius: 9,
-            fontSize: 13, color: "var(--logout-color)", cursor: signingOut ? "wait" : "pointer",
+              fontSize: 13, color: "var(--logout-color)",
+              cursor: signingOut ? "wait" : "pointer",
               opacity: signingOut ? 0.7 : 1,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
@@ -374,27 +305,12 @@ const ProfileDropdown: React.FC = () => {
   );
 };
 
-// ─── Main Layout ──────────────────────────────────────────────────────────────
-
 const MoodChatLayout: React.FC = () => {
-  const [search, setSearch] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname.split("/")[1] as NavKey | undefined;
   const navKeys: NavKey[] = ["dashboard", "chat", "modes", "channels", "blog", "notepad", "settings"];
   const activeNav: NavKey = currentPath && navKeys.includes(currentPath) ? currentPath : "dashboard";
-
-  // ⌘K shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        document.getElementById("global-search")?.focus();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, []);
 
   return (
     <div style={{
@@ -408,7 +324,7 @@ const MoodChatLayout: React.FC = () => {
       boxSizing: "border-box",
     }}>
 
-      {/* ════ SIDEBAR ════ */}
+      {/* SIDEBAR */}
       <aside style={{
         gridColumn: 1, gridRow: "1 / 3",
         background: T.sidebarBg,
@@ -418,7 +334,6 @@ const MoodChatLayout: React.FC = () => {
         position: "relative", zIndex: 30,
         boxShadow: "var(--sidebar-shadow)",
       }}>
-        {/* Logo */}
         <div style={{
           width: 72, height: 56,
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -433,8 +348,7 @@ const MoodChatLayout: React.FC = () => {
           }}>💬</div>
         </div>
 
-        {/* Profile avatar - clickable to navigate to profile */}
-        <div 
+        <div
           onClick={() => navigate("/profile")}
           style={{
             width: 40, height: 40, borderRadius: "50%",
@@ -464,7 +378,6 @@ const MoodChatLayout: React.FC = () => {
           }} />
         </div>
 
-        {/* Main nav */}
         <nav style={{
           display: "flex", flexDirection: "column",
           alignItems: "center", gap: 4,
@@ -480,7 +393,6 @@ const MoodChatLayout: React.FC = () => {
           ))}
         </nav>
 
-        {/* Settings at bottom */}
         <div style={{ width: "100%", padding: "0 10px" }}>
           <SideNavItem
             item={{ key: "settings", label: "Settings", icon: <Icon.Settings /> }}
@@ -490,7 +402,7 @@ const MoodChatLayout: React.FC = () => {
         </div>
       </aside>
 
-      {/* ════ TOPBAR ════ */}
+      {/* TOPBAR */}
       <header style={{
         gridColumn: 2, gridRow: 1,
         background: T.topbarBg,
@@ -501,7 +413,6 @@ const MoodChatLayout: React.FC = () => {
         boxShadow: "var(--topbar-shadow)",
         minWidth: 0,
       }}>
-        {/* Page title */}
         <div style={{
           fontFamily: "'Syne', sans-serif", fontSize: 15, fontWeight: 700,
           color: T.text, letterSpacing: "0.3px", whiteSpace: "nowrap",
@@ -509,39 +420,6 @@ const MoodChatLayout: React.FC = () => {
           Mood<span style={{ color: T.muted }}>Chat</span>
         </div>
 
-        {/* Global search */}
-        <div style={{ flex: "1 1 220px", minWidth: 0, maxWidth: 420, margin: "0 auto", position: "relative" }}>
-          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.muted }}>
-            <Icon.Search />
-          </div>
-          <input
-            id="global-search"
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search anything…"
-            style={{
-              width: "100%",
-              background: T.surface,
-              border: `1px solid ${T.border}`,
-              borderRadius: 10,
-              padding: "8px 50px 8px 38px",
-              color: T.text,
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 13,
-              outline: "none",
-              letterSpacing: "0.2px",
-            }}
-          />
-          <span style={{
-            position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-            background: T.border, borderRadius: 5, padding: "2px 7px",
-            fontSize: 10, color: T.muted, fontFamily: "monospace", letterSpacing: 1,
-            pointerEvents: "none",
-          }}>⌘K</span>
-        </div>
-
-        {/* Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0 }}>
           {/* Notifications */}
           <div style={{
@@ -558,15 +436,12 @@ const MoodChatLayout: React.FC = () => {
             }} />
           </div>
 
-          {/* Theme Toggle */}
           <ThemeToggle />
-
-          {/* Profile */}
           <ProfileDropdown />
         </div>
       </header>
 
-      {/* ════ MAIN CONTENT ════ */}
+      {/* MAIN CONTENT */}
       <main style={{
         gridColumn: 2, gridRow: 2,
         background: T.contentBg,

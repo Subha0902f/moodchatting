@@ -15,7 +15,7 @@ interface LoginForm {
   password: string;
 }
 
-interface FormErrors<T> {
+interface FormErrors {
   [K: string]: string;
 }
 
@@ -113,8 +113,8 @@ const AuthContainer: React.FC = () => {
 
   // Global input state used by both forms.
   const [rememberMe, setRememberMe] = useState(false);
-  const [loginErrors, setLoginErrors] = useState<FormErrors<LoginForm>>({});
-  const [signupErrors, setSignupErrors] = useState<FormErrors<User>>({});
+  const [loginErrors, setLoginErrors] = useState<FormErrors>({});
+const [signupErrors, setSignupErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({ message: "", visible: false });
 
@@ -147,7 +147,7 @@ const AuthContainer: React.FC = () => {
     e?.preventDefault();
 
     // Validate login form fields before attempting authentication.
-    const errs: FormErrors<LoginForm> = {};
+    const errs: FormErrors = {};
     if (!loginForm.email.trim()) errs.email = "Email is required";
     else if (!EMAIL_RE.test(loginForm.email.trim())) errs.email = "Enter a valid email";
     if (!loginForm.password) errs.password = "Password is required";
@@ -174,7 +174,7 @@ const AuthContainer: React.FC = () => {
     e?.preventDefault();
 
     // Validate signup form fields and show field-level errors if needed.
-    const errs: FormErrors<User> = {};
+   const errs: FormErrors = {};
     if (!signupForm.username.trim()) errs.username = "Username is required";
     if (!signupForm.email.trim()) errs.email = "Email is required";
     else if (!EMAIL_RE.test(signupForm.email.trim())) errs.email = "Enter a valid email";
@@ -271,15 +271,6 @@ const AuthContainer: React.FC = () => {
             error={loginErrors.password}
             onChange={handleLoginChange}
           />
-          <label style={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={styles.checkbox}
-            />
-            Remember me
-          </label>
           <div style={styles.sep} />
           <button style={styles.btn} type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Logging in..." : "Login"}
