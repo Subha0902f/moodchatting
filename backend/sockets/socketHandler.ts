@@ -18,7 +18,7 @@ import { Server, Socket } from 'socket.io';
 import { supabaseAdmin } from '../config/supabase';
 import { UserRole } from '../types/user.types';
 import { getUserFromAuthToken } from '../middleware/authMiddleware';
-import {
+import type {
   SendMessagePayload,
   ReceivedMessagePayload,
   TypingPayload,
@@ -28,8 +28,8 @@ import {
   SocketData,
   ChatRoom,
   DatabaseMessage,
-  ServerEventNames,
 } from '../types/socket.types';
+import { ServerEventNames } from '../types/socket.types';
 
 // ─── Socket State Management ──────────────────────────────────────────────────
 
@@ -49,6 +49,126 @@ const socketState = {
   
   /** Map of chatId to chat room data */
   chatRooms: new Map<string, ChatRoom>(),
+};
+
+type CallType = 'voice';
+
+type WebRtcSessionDescription = Record<string, any>;
+type WebRtcIceCandidate = Record<string, any>;
+
+interface CallInitiatePayload {
+  callId: string;
+  callerId: string;
+  calleeId: string;
+  callType: CallType;
+  offer: WebRtcSessionDescription | null;
+  callerName?: string;
+  callerAvatar?: string;
+  timestamp: string;
+}
+
+interface CallAnswerPayload {
+  callId: string;
+  answer: WebRtcSessionDescription;
+  calleeId: string;
+}
+
+interface CallRejectPayload {
+  callId: string;
+  reason?: string;
+  calleeId: string;
+}
+
+interface IceCandidatePayload {
+  callId: string;
+  candidate: WebRtcIceCandidate;
+  senderId: string;
+}
+
+interface CallEndPayload {
+  callId: string;
+  reason?: string;
+  endedBy: string;
+}
+
+interface CallSession {
+  callId: string;
+  callerId: string;
+  calleeId: string;
+  callType: CallType;
+  status: 'ringing' | 'connected' | 'ended' | 'missed' | 'rejected';
+  createdAt: string;
+  acceptedAt?: string;
+  timer?: NodeJS.Timeout;
+}
+
+const callSessions = new Map<string, CallSession>();
+const userCallSession = new Map<string, string>();
+
+const getUserSocketIds = (userId: string): Set<string> | undefined => {
+  return socketState.userSockets.get(userId);
+};
+
+const sendEventToUser = (io: Server, userId: string, event: string, payload: unknown): void => {
+  const socketIds = getUserSocketIds(userId);
+  if (!socketIds || socketIds.size === 0) return;
+  socketIds.forEach((socketId) => {
+    io.to(socketId).emit(event, payload);
+  });
+};
+
+const clearCallSession = (callId: string): void => {
+  const session = callSessions.get(callId);
+  if (!session) return;
+  if (session.timer) {
+    clearTimeout(session.timer);
+  }
+  userCallSession.delete(session.callerId);
+  userCallSession.delete(session.calleeId);
+  callSessions.delete(callId);
+};
+
+const emitCallStatus = (
+  io: Server,
+  userId: string,
+  callId: string,
+  status: 'calling' | 'ringing' | 'connected' | 'ended' | 'missed' | 'rejected' | 'failed',
+  message?: string
+): void => {
+  sendEventToUser(io, userId, ServerEventNames.CALL_STATUS, { callId, status, message });
+};
+
+const endCallSession = (
+  io: Server,
+  callId: string,
+  reason: string,
+  endedBy: string,
+  missed = false
+): void => {
+  const session = callSessions.get(callId);
+  if (!session) return;
+
+  const payload = {
+    callId,
+    endedBy,
+    reason,
+  };
+
+  const otherUserId = session.callerId === endedBy ? session.calleeId : session.callerId;
+
+  sendEventToUser(io, otherUserId, ServerEventNames.CALL_ENDED, payload);
+  if (missed) {
+    sendEventToUser(io, session.callerId, ServerEventNames.CALL_MISSED, {
+      callId,
+      reason,
+      calleeId: session.calleeId,
+    });
+  }
+
+  emitCallStatus(io, session.callerId, callId, 'ended', reason);
+  emitCallStatus(io, session.calleeId, callId, 'ended', reason);
+
+  clearCallSession(callId);
 };
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
@@ -526,6 +646,185 @@ const handleTypingStop = (_io: Server, socket: Socket, payload: TypingPayload): 
 };
 
 /**
+ * Handle call initiation from a caller to a callee
+ */
+const handleCallInitiate = (
+  io: Server,
+  socket: Socket,
+  payload: CallInitiatePayload
+): void => {
+  const userId = socket.data?.userId;
+  if (!userId || !payload.calleeId || !payload.callId || !payload.callType) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'Invalid call initiation payload',
+    });
+    return;
+  }
+
+  const targetUserId = payload.calleeId;
+  const callerId = userId;
+  const existingCall = userCallSession.get(callerId) || userCallSession.get(targetUserId);
+  if (existingCall) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'One of the users is already in a call',
+    });
+    return;
+  }
+
+  const session: CallSession = {
+    callId: payload.callId,
+    callerId,
+    calleeId: targetUserId,
+    callType: payload.callType,
+    status: 'ringing',
+    createdAt: new Date().toISOString(),
+  };
+
+  callSessions.set(payload.callId, session);
+  userCallSession.set(callerId, payload.callId);
+  userCallSession.set(targetUserId, payload.callId);
+
+  sendEventToUser(io, targetUserId, ServerEventNames.INCOMING_CALL, {
+    callId: payload.callId,
+    callerId,
+    calleeId: targetUserId,
+    callType: payload.callType,
+    offer: payload.offer,
+    callerName: socket.data?.fullName,
+    callerAvatar: socket.data?.avatarUrl,
+    timestamp: session.createdAt,
+  });
+
+  emitCallStatus(io, callerId, payload.callId, 'ringing', 'Calling user');
+};
+
+/**
+ * Handle call answer from callee back to caller
+ */
+const handleCallAnswer = (
+  io: Server,
+  socket: Socket,
+  payload: CallAnswerPayload
+): void => {
+  const userId = socket.data?.userId;
+  if (!userId || !payload.callId || !payload.answer) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'Invalid call answer payload',
+    });
+    return;
+  }
+
+  const session = callSessions.get(payload.callId);
+  if (!session || session.calleeId !== userId) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'Call session not found',
+    });
+    return;
+  }
+
+  session.status = 'connected';
+  session.acceptedAt = new Date().toISOString();
+
+  sendEventToUser(io, session.callerId, ServerEventNames.CALL_ANSWER, {
+    callId: payload.callId,
+    answer: payload.answer,
+    calleeId: userId,
+  });
+
+  emitCallStatus(io, session.callerId, payload.callId, 'connected', 'Call connected');
+  emitCallStatus(io, session.calleeId, payload.callId, 'connected', 'Call connected');
+};
+
+/**
+ * Handle call rejection by the callee
+ */
+const handleCallReject = (
+  io: Server,
+  socket: Socket,
+  payload: CallRejectPayload
+): void => {
+  const userId = socket.data?.userId;
+  if (!userId || !payload.callId) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'Invalid call reject payload',
+    });
+    return;
+  }
+
+  const session = callSessions.get(payload.callId);
+  if (!session || session.calleeId !== userId) {
+    socket.emit(ServerEventNames.ERROR, {
+      success: false,
+      error: 'Call session not found',
+    });
+    return;
+  }
+
+  session.status = 'rejected';
+  const reason = payload.reason || 'Call rejected';
+
+  sendEventToUser(io, session.callerId, ServerEventNames.CALL_REJECTED, {
+    callId: payload.callId,
+    reason,
+    calleeId: userId,
+  });
+
+  emitCallStatus(io, session.callerId, payload.callId, 'rejected', reason);
+  emitCallStatus(io, session.calleeId, payload.callId, 'rejected', reason);
+
+  clearCallSession(payload.callId);
+};
+
+/**
+ * Handle ICE candidate forwarding for an ongoing call
+ */
+const handleCallIceCandidate = (
+  io: Server,
+  socket: Socket,
+  payload: IceCandidatePayload
+): void => {
+  const userId = socket.data?.userId;
+  if (!userId || !payload.callId || !payload.candidate) {
+    return;
+  }
+
+  const session = callSessions.get(payload.callId);
+  if (!session) {
+    return;
+  }
+
+  const targetUserId = session.callerId === userId ? session.calleeId : session.callerId;
+  sendEventToUser(io, targetUserId, ServerEventNames.ICE_CANDIDATE, payload);
+};
+
+/**
+ * Handle an explicit call end from either participant
+ */
+const handleCallEnd = (
+  io: Server,
+  socket: Socket,
+  payload: CallEndPayload
+): void => {
+  const userId = socket.data?.userId;
+  if (!userId || !payload.callId) {
+    return;
+  }
+
+  const session = callSessions.get(payload.callId);
+  if (!session) {
+    return;
+  }
+
+  const reason = payload.reason || 'Call ended';
+  endCallSession(io, payload.callId, reason, userId);
+};
+
+/**
  * Handle user disconnection
  * 
  * @param io - Socket.io server instance
@@ -739,6 +1038,27 @@ export const initializeSocket = (io: Server): void => {
 
     socket.on('typing_stop', (payload: TypingPayload) => {
       handleTypingStop(io, socket, payload);
+    });
+
+    // Call signaling events
+    socket.on('call_initiate', (payload: any) => {
+      handleCallInitiate(io, socket, payload);
+    });
+
+    socket.on('call_answer', (payload: any) => {
+      handleCallAnswer(io, socket, payload);
+    });
+
+    socket.on('call_reject', (payload: any) => {
+      handleCallReject(io, socket, payload);
+    });
+
+    socket.on('call_ice_candidate', (payload: any) => {
+      handleCallIceCandidate(io, socket, payload);
+    });
+
+    socket.on('call_end', (payload: any) => {
+      handleCallEnd(io, socket, payload);
     });
 
     // Mark message as read

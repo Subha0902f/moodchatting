@@ -27,6 +27,12 @@ import type {
   SocketConfig,
   SocketState,
   SocketErrorResponse,
+  CallInitiatePayload,
+  CallAnswerPayload,
+  CallRejectPayload,
+  IceCandidatePayload,
+  CallEndPayload,
+  CallStatusPayload,
   MessageHandler,
   ConnectionHandler,
   DisconnectionHandler,
@@ -36,6 +42,12 @@ import type {
   ErrorHandler,
   ReminderHandler,
   ConnectionErrorHandler,
+  IncomingCallHandler,
+  CallAnswerHandler,
+  CallRejectHandler,
+  IceCandidateHandler,
+  CallEndHandler,
+  CallStatusHandler,
 } from '../types/socket.types';
 import { ClientEvents, ServerEvents } from '../types/socket.types';
 
@@ -123,6 +135,12 @@ class SocketManager {
   private typingHandlers: Set<TypingHandler> = new Set();
   private errorHandlers: Set<ErrorHandler> = new Set();
   private reminderHandlers: Set<ReminderHandler> = new Set();
+  private incomingCallHandlers: Set<IncomingCallHandler> = new Set();
+  private callAnswerHandlers: Set<CallAnswerHandler> = new Set();
+  private callRejectHandlers: Set<CallRejectHandler> = new Set();
+  private iceCandidateHandlers: Set<IceCandidateHandler> = new Set();
+  private callEndHandlers: Set<CallEndHandler> = new Set();
+  private callStatusHandlers: Set<CallStatusHandler> = new Set();
   private connectionErrorHandlers: Set<ConnectionErrorHandler> = new Set();
 
   // Track registered socket listeners to prevent duplicates
@@ -327,6 +345,42 @@ class SocketManager {
       this.notifyReminder(notification);
     });
 
+    // Incoming call signaling
+    this.socket.on(ServerEvents.INCOMING_CALL, (payload: CallInitiatePayload) => {
+      console.log('📞 Incoming call:', payload);
+      this.notifyIncomingCall(payload);
+    });
+
+    this.socket.on(ServerEvents.CALL_ANSWER, (payload: CallAnswerPayload) => {
+      console.log('✅ Call answered:', payload);
+      this.notifyCallAnswer(payload);
+    });
+
+    this.socket.on(ServerEvents.CALL_REJECTED, (payload: CallRejectPayload) => {
+      console.log('🚫 Call rejected:', payload);
+      this.notifyCallReject(payload);
+    });
+
+    this.socket.on(ServerEvents.ICE_CANDIDATE, (payload: IceCandidatePayload) => {
+      console.log('🧊 ICE candidate received:', payload);
+      this.notifyIceCandidate(payload);
+    });
+
+    this.socket.on(ServerEvents.CALL_ENDED, (payload: CallEndPayload) => {
+      console.log('🛑 Call ended:', payload);
+      this.notifyCallEnded(payload);
+    });
+
+    this.socket.on(ServerEvents.CALL_MISSED, (payload: CallEndPayload) => {
+      console.log('📳 Call missed:', payload);
+      this.notifyCallEnded(payload);
+    });
+
+    this.socket.on(ServerEvents.CALL_STATUS, (payload: CallStatusPayload) => {
+      console.log('📡 Call status update:', payload);
+      this.notifyCallStatus(payload);
+    });
+
     // Error event
     this.socket.on(ServerEvents.ERROR, (error: { success: boolean; error: string; code?: string }) => {
       console.error('Socket.io error:', error);
@@ -428,6 +482,66 @@ class SocketManager {
   }
 
   /**
+   * Subscribe to incoming call events
+   * @param handler - Callback function for incoming call events
+   * @returns Unsubscribe function
+   */
+  public onIncomingCall(handler: IncomingCallHandler): () => void {
+    this.incomingCallHandlers.add(handler);
+    return () => this.incomingCallHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to call answer events
+   * @param handler - Callback function for call answer events
+   * @returns Unsubscribe function
+   */
+  public onCallAnswer(handler: CallAnswerHandler): () => void {
+    this.callAnswerHandlers.add(handler);
+    return () => this.callAnswerHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to call rejection events
+   * @param handler - Callback function for call reject events
+   * @returns Unsubscribe function
+   */
+  public onCallReject(handler: CallRejectHandler): () => void {
+    this.callRejectHandlers.add(handler);
+    return () => this.callRejectHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to ICE candidate events
+   * @param handler - Callback function for ICE candidate events
+   * @returns Unsubscribe function
+   */
+  public onIceCandidate(handler: IceCandidateHandler): () => void {
+    this.iceCandidateHandlers.add(handler);
+    return () => this.iceCandidateHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to call ended events
+   * @param handler - Callback function for call ended events
+   * @returns Unsubscribe function
+   */
+  public onCallEnded(handler: CallEndHandler): () => void {
+    this.callEndHandlers.add(handler);
+    return () => this.callEndHandlers.delete(handler);
+  }
+
+  /**
+   * Subscribe to call status updates
+   * @param handler - Callback function for call status events
+   * @returns Unsubscribe function
+   */
+  public onCallStatus(handler: CallStatusHandler): () => void {
+    this.callStatusHandlers.add(handler);
+    return () => this.callStatusHandlers.delete(handler);
+  }
+
+  /**
    * Subscribe to connection error events
    * @param handler - Callback function for connection error events
    * @returns Unsubscribe function
@@ -469,6 +583,30 @@ class SocketManager {
 
   private notifyReminder(notification: ReminderNotificationPayload): void {
     this.reminderHandlers.forEach((handler) => handler(notification));
+  }
+
+  private notifyIncomingCall(payload: CallInitiatePayload): void {
+    this.incomingCallHandlers.forEach((handler) => handler(payload));
+  }
+
+  private notifyCallAnswer(payload: CallAnswerPayload): void {
+    this.callAnswerHandlers.forEach((handler) => handler(payload));
+  }
+
+  private notifyCallReject(payload: CallRejectPayload): void {
+    this.callRejectHandlers.forEach((handler) => handler(payload));
+  }
+
+  private notifyIceCandidate(payload: IceCandidatePayload): void {
+    this.iceCandidateHandlers.forEach((handler) => handler(payload));
+  }
+
+  private notifyCallEnded(payload: CallEndPayload): void {
+    this.callEndHandlers.forEach((handler) => handler(payload));
+  }
+
+  private notifyCallStatus(payload: CallStatusPayload): void {
+    this.callStatusHandlers.forEach((handler) => handler(payload));
   }
 
   private notifyConnectionError(error: Error): void {
@@ -586,6 +724,75 @@ class SocketManager {
     this.socket.emit(ClientEvents.GET_ONLINE_USERS, { chatId });
   }
 
+  /**
+   * Initiate a voice call
+   * @param payload - Call initiation payload
+   */
+  public initiateCall(payload: CallInitiatePayload): void {
+    if (!this.socket || !this._state.isConnected) {
+      console.warn('Cannot initiate call: Socket not connected');
+      return;
+    }
+
+    console.log('📞 Initiating call:', payload);
+    this.socket.emit(ClientEvents.CALL_INITIATE, payload);
+  }
+
+  /**
+   * Answer an incoming call
+   * @param payload - Call answer payload
+   */
+  public answerCall(payload: CallAnswerPayload): void {
+    if (!this.socket || !this._state.isConnected) {
+      console.warn('Cannot answer call: Socket not connected');
+      return;
+    }
+
+    console.log('✅ Answering call:', payload);
+    this.socket.emit(ClientEvents.CALL_ANSWER, payload);
+  }
+
+  /**
+   * Reject an incoming call
+   * @param payload - Call rejection payload
+   */
+  public rejectCall(payload: CallRejectPayload): void {
+    if (!this.socket || !this._state.isConnected) {
+      console.warn('Cannot reject call: Socket not connected');
+      return;
+    }
+
+    console.log('🚫 Rejecting call:', payload);
+    this.socket.emit(ClientEvents.CALL_REJECT, payload);
+  }
+
+  /**
+   * Send ICE candidate during an active call
+   * @param payload - ICE candidate payload
+   */
+  public sendIceCandidate(payload: IceCandidatePayload): void {
+    if (!this.socket || !this._state.isConnected) {
+      console.warn('Cannot send ICE candidate: Socket not connected');
+      return;
+    }
+
+    this.socket.emit(ClientEvents.CALL_ICE_CANDIDATE, payload);
+  }
+
+  /**
+   * End an active call
+   * @param payload - Call end payload
+   */
+  public endCall(payload: CallEndPayload): void {
+    if (!this.socket || !this._state.isConnected) {
+      console.warn('Cannot end call: Socket not connected');
+      return;
+    }
+
+    console.log('🛑 Ending call:', payload);
+    this.socket.emit(ClientEvents.CALL_END, payload);
+  }
+
   // ─── Connection State Getters ───────────────────────────────────────────────
 
   /**
@@ -684,6 +891,12 @@ class SocketManager {
     this.typingHandlers.clear();
     this.errorHandlers.clear();
     this.reminderHandlers.clear();
+    this.incomingCallHandlers.clear();
+    this.callAnswerHandlers.clear();
+    this.callRejectHandlers.clear();
+    this.iceCandidateHandlers.clear();
+    this.callEndHandlers.clear();
+    this.callStatusHandlers.clear();
     this.connectionErrorHandlers.clear();
   }
 

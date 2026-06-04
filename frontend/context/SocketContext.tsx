@@ -152,7 +152,7 @@ export function SocketProvider({ children, authToken, user }: SocketProviderProp
     setCurrentUser(user);
     setIsConnecting(true);
 
-    // Connect to socket
+    // Connect to socket 
     socketManager.connect(token, user);
 
     // Set up event listeners and store unsubscribe functions
@@ -206,16 +206,11 @@ export function SocketProvider({ children, authToken, user }: SocketProviderProp
       socketManager.onError((error) => {
         setLastError(error);
       }),
-      socketManager.onMessage((message) => {
-        // Update current chat if needed
-        if (message.chatId !== currentChatId) {
-          setCurrentChatId(message.chatId);
-        }
-      }),
+    
     ];
 
     unsubscribers.forEach(registerUnsubscribe);
-  }, [currentChatId, registerUnsubscribe]);
+  }, [registerUnsubscribe]);
 
   // Disconnect function
   const disconnect = useCallback(() => {
@@ -243,13 +238,16 @@ export function SocketProvider({ children, authToken, user }: SocketProviderProp
     socketManager.joinChat(chatId);
   }, []);
 
-  const leaveChat = useCallback((chatId: string) => {
-    socketManager.leaveChat(chatId);
-    if (currentChatId === chatId) {
-      setCurrentChatId(null);
-      setTypingUsers(new Map());
-    }
-  }, [currentChatId]);
+const currentChatIdRef = useRef<string | null>(null);
+
+const leaveChat = useCallback((chatId: string) => {
+  socketManager.leaveChat(chatId);
+  if (currentChatIdRef.current === chatId) {
+    currentChatIdRef.current = null;
+    setCurrentChatId(null);
+    setTypingUsers(new Map());
+  }
+}, []); // ← empty deps, never changes
 
   const sendMessage = useCallback((payload: SendMessagePayload) => {
     socketManager.sendMessage(payload);
@@ -398,7 +396,7 @@ export function SocketProvider({ children, authToken, user }: SocketProviderProp
     if (authToken && user) {
       connect(authToken, user);
     }
-  }, [authToken, user, connect]);
+  }, [authToken, user]);
 
   return (
     <SocketContext.Provider value={contextValue}>
@@ -488,8 +486,8 @@ export function useSocketMessages(
       unsubscribe();
       leaveChat(chatId);
     };
-  }, [chatId, onMessage, onNewMessage, joinChat, leaveChat]);
-}
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [chatId]);}
 
 // ─── Utility Hook for Typing Indicators ───────────────────────────────────────
 

@@ -76,12 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              username,
-              name: username,
-            },
-          },
+          options: { data: { username, name: username } },
         });
 
         const createdUser = result.data.user;

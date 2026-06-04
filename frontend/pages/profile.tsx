@@ -73,18 +73,18 @@ const MOTIVATIONAL_QUOTES = [
   "Believe you can and you're halfway there.",
   "The only limit is the one you set.",
   "Choose your mood wisely today.",
-  "You've got this!",
-  "Radiate positivity.",
   "Create the mood you want to live in.",
   "Your energy is contagious.",
   "Celebrate small wins today.",
+  "Being responsible is the first step to be a man.",
+  "Sometimes we face the hardest truth of life to face the reality of life.",
 ];
 
 const MODES: Mode[] = [
   {
     id: "chat",
     name: "Chat",
-    icon: "ðŸ’¬",
+    icon: "💬",
     description: "Reach out and connect with friends",
     action: "chat",
     active: true,
@@ -92,22 +92,22 @@ const MODES: Mode[] = [
   {
     id: "hype",
     name: "Hype",
-    icon: "ðŸ”¥",
+    icon: "🔥",
     description: "Get motivated with daily affirmations",
     action: "hype",
   },
   {
     id: "calm",
-    name: "Calm",
-    icon: "ðŸ§˜",
+    name: "Break Timer",
+    icon: "🍵",
     description: "Take a moment to breathe and reset",
     action: "calm",
   },
   {
     id: "notes",
     name: "Notes",
-    icon: "ðŸ“",
-    description: "Jot down your thoughts",
+    icon: "📝",
+    description: "Write down your thoughts",
     action: "notes",
   },
 ];
@@ -377,7 +377,7 @@ const HypeModal = ({ isOpen, onClose }: HypeModalProps) => {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "flex-end", zIndex: 50 }}>
       <div style={{ width: "100%", background: V.surface, borderTop: `2px solid ${V.lime}`, borderRadius: "12px 12px 0 0", padding: "2rem 1.25rem", textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: "1rem" }}>ðŸ”¥</div>
+        <div style={{ fontSize: 40, marginBottom: "1rem" }}>Today's Motivation!</div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: V.lime, marginBottom: "1rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Today's Hype</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: V.text, marginBottom: "1.5rem", lineHeight: 1.6 }}>"{quote}"</div>
         <button
@@ -425,7 +425,7 @@ const CalmModal = ({ isOpen, onClose }: CalmModalProps) => {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "flex-end", zIndex: 50 }}>
       <div style={{ width: "100%", background: V.surface, borderTop: `2px solid ${V.lime}`, borderRadius: "12px 12px 0 0", padding: "2rem 1.25rem", textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: "1rem" }}>ðŸ§˜</div>
+        <div style={{ fontSize: 40, marginBottom: "1rem" }}>Let's have a break. Please set the time.</div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: V.lime, marginBottom: "1rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Calm Mode</div>
 
         {!isRunning || timeLeft === null ? (

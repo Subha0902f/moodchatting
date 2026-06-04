@@ -5,60 +5,25 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import {
+  ALL_FRIENDS,
+  MODE_META,
+  loadModeAssignments,
+  saveModeAssignments,
+  ModeKey,
+  ModeMeta,
+  ModeState,
+} from "../services/modeStorage";
 import "./theme.css";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type ModeKey = "professional" | "fun" | "private" | "relaxment" | "allinone";
 type ModalIntent = "add" | "remove" | "edit";
-
-interface Friend {
-  id: number;
-  name: string;
-  emoji: string;
-  bg: string;
-  online: boolean;
-}
-
-interface ModeMeta {
-  label: string;
-  icon: string;
-  accent: string;
-}
-
-interface ModeState {
-  users: number[];
-}
 
 interface ModalState {
   modeKey?: ModeKey;
   intent: ModalIntent;
 }
-
-// ─── Constants ─────────────────────────────────────────────────────────────────
-
-const ALL_FRIENDS: Friend[] = [
-  { id: 1, name: "Aria Nakamura", emoji: "🌸", bg: "#2a1e0a", online: true },
-  { id: 2, name: "Dev Sharma",    emoji: "🔥", bg: "#0a1e2a", online: false },
-  { id: 3, name: "Zoe Ellis",     emoji: "⚡", bg: "#1e0a2a", online: true },
-  { id: 4, name: "Kai Watanabe",  emoji: "🌊", bg: "#2a2a0a", online: false },
-];
-
-const MODE_META: Record<ModeKey, ModeMeta> = {
-  professional: { label: "Professional", icon: "💼", accent: "#60a5fa" },
-  fun:          { label: "Fun",          icon: "🎉", accent: "#f472b6" },
-  private:      { label: "Private",      icon: "🔒", accent: "#a78bfa" },
-  relaxment:    { label: "Relaxment",    icon: "🌿", accent: "#4ade80" },
-  allinone:     { label: "All-in-One",   icon: "⚡", accent: "#c8f53d" },
-};
-
-const INIT_MODES: Record<ModeKey, ModeState> = {
-  professional: { users: [] },
-  fun:          { users: [] },
-  private:      { users: [] },
-  relaxment:    { users: [] },
-  allinone:     { users: [] },
-};
 
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
 
@@ -571,10 +536,14 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
 // ─── Root App ──────────────────────────────────────────────────────────────────
 
 const ModesContainer: React.FC = () => {
-  const [modes, setModes] = useState<Record<ModeKey, ModeState>>(INIT_MODES);
+  const [modes, setModes] = useState<Record<ModeKey, ModeState>>(() => loadModeAssignments());
   const [modeMeta, setModeMeta] = useState(MODE_META);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toastMsg, toastVis, fire] = useToast();
+
+  useEffect(() => {
+    saveModeAssignments(modes);
+  }, [modes]);
 
   const openModal = (key: ModeKey, intent: ModalIntent) => setModal({ modeKey: key, intent });
   const closeModal = () => setModal(null);

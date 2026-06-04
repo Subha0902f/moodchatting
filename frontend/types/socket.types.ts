@@ -129,6 +129,49 @@ export interface UserPresenceUpdate {
   timestamp: string;
 }
 
+export type CallType = 'voice';
+
+export interface CallInitiatePayload {
+  callId: string;
+  callerId: string;
+  calleeId: string;
+  callType: CallType;
+  offer: RTCSessionDescriptionInit | null;
+  callerName?: string;
+  callerAvatar?: string;
+  timestamp: string;
+}
+
+export interface CallAnswerPayload {
+  callId: string;
+  answer: RTCSessionDescriptionInit;
+  calleeId: string;
+}
+
+export interface CallRejectPayload {
+  callId: string;
+  reason?: string;
+  calleeId: string;
+}
+
+export interface IceCandidatePayload {
+  callId: string;
+  candidate: RTCIceCandidateInit;
+  senderId: string;
+}
+
+export interface CallEndPayload {
+  callId: string;
+  reason?: string;
+  endedBy: string;
+}
+
+export interface CallStatusPayload {
+  callId: string;
+  status: 'calling' | 'ringing' | 'connected' | 'ended' | 'missed' | 'rejected' | 'failed';
+  message?: string;
+}
+
 // ─── Notification Types ─────────────────────────────────────────────────────────
 
 /**
@@ -157,6 +200,11 @@ export const ClientEvents = {
   MARK_READ: 'mark_read',
   GET_ONLINE_USERS: 'get_online_users',
   DISCONNECT: 'disconnect',
+  CALL_INITIATE: 'call_initiate',
+  CALL_ANSWER: 'call_answer',
+  CALL_REJECT: 'call_reject',
+  CALL_ICE_CANDIDATE: 'call_ice_candidate',
+  CALL_END: 'call_end',
 } as const;
 
 export type ClientEventKeys = keyof typeof ClientEvents;
@@ -181,6 +229,13 @@ export const ServerEvents = {
   CONNECT_ERROR: 'connect_error',
   RECONNECT: 'reconnect',
   RECONNECT_ERROR: 'reconnect_error',
+  INCOMING_CALL: 'incoming_call',
+  CALL_ANSWER: 'call_answer',
+  CALL_REJECTED: 'call_rejected',
+  ICE_CANDIDATE: 'ice_candidate',
+  CALL_ENDED: 'call_ended',
+  CALL_MISSED: 'call_missed',
+  CALL_STATUS: 'call_status',
 } as const;
 
 export type ServerEventKeys = keyof typeof ServerEvents;
@@ -295,6 +350,36 @@ export type ErrorHandler = (error: SocketErrorResponse) => void;
  * Callback for reminder notifications
  */
 export type ReminderHandler = (notification: ReminderNotificationPayload) => void;
+
+/**
+ * Callback for incoming call notifications
+ */
+export type IncomingCallHandler = (payload: CallInitiatePayload) => void;
+
+/**
+ * Callback for call answer notifications
+ */
+export type CallAnswerHandler = (payload: CallAnswerPayload) => void;
+
+/**
+ * Callback for call rejection notifications
+ */
+export type CallRejectHandler = (payload: CallRejectPayload) => void;
+
+/**
+ * Callback for ICE candidate notifications
+ */
+export type IceCandidateHandler = (payload: IceCandidatePayload) => void;
+
+/**
+ * Callback for call ended notifications
+ */
+export type CallEndHandler = (payload: CallEndPayload) => void;
+
+/**
+ * Callback for call status updates
+ */
+export type CallStatusHandler = (payload: CallStatusPayload) => void;
 
 /**
  * Callback for connection error events

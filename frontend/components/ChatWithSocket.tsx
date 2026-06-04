@@ -14,7 +14,7 @@ import type {
   SendMessagePayload,
   OnlineUser,
 } from '../types/socket.types';
-import { useSocket, useSocketTyping } from '../context/SocketContext';
+import { useSocket, useSocketMessages, useSocketTyping } from '../context/SocketContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -195,12 +195,38 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     sendMessage,
     startTyping,
     stopTyping,
-    onMessage,
+    requestOnlineUsers,
     currentChatId,
   } = useSocket();
 
   // Typing hook
   const { typingUserList } = useSocketTyping(chatId, userName);
+
+  // Subscribe to chat messages and join room automatically
+  useSocketMessages(chatId, (message: ReceivedMessagePayload) => {
+    const newMessage: Message = {
+      id: message.id || Date.now().toString(),
+      message: message.message,
+      timestamp: message.timestamp,
+      isOwn: message.senderId === userId,
+      senderName: message.senderName,
+      status: message.status,
+    };
+
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === newMessage.id)) {
+        return prev;
+      }
+      return [...prev, newMessage];
+    });
+
+    onNewMessage?.(message);
+  });
+
+  useEffect(() => {
+    if (!chatId) return;
+    requestOnlineUsers(chatId);
+  }, [chatId, requestOnlineUsers]);
 
   // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
@@ -210,37 +236,6 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  // Listen for new messages
-  useEffect(() => {
-    const unsubscribe = onMessage((message: ReceivedMessagePayload) => {
-      if (message.chatId === chatId) {
-        const newMessage: Message = {
-          id: message.id || Date.now().toString(),
-          message: message.message,
-          timestamp: message.timestamp,
-          isOwn: message.senderId === userId,
-          senderName: message.senderName,
-          status: message.status,
-        };
-
-        setMessages((prev) => {
-          // Avoid duplicate messages
-          if (prev.some((m) => m.id === newMessage.id)) {
-            return prev;
-          }
-          return [...prev, newMessage];
-        });
-
-        // Call custom callback if provided
-        onNewMessage?.(message);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [chatId, userId, onMessage, onNewMessage]);
 
   // Handle typing indicator
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
+// Shape definitions for the login/signup form data and validation errors.
 interface User {
   username: string;
   email: string;
@@ -20,7 +20,7 @@ interface FormErrors<T> {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
+// Reusable utilities for validation and converting raw auth errors into user-friendly text.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const friendlyAuthError = (message: string) => {
@@ -32,6 +32,7 @@ const friendlyAuthError = (message: string) => {
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+// Small reusable UI pieces used by both login and signup forms.
 
 interface FieldProps {
   label: string;
@@ -92,11 +93,14 @@ const Toast: React.FC<ToastProps> = ({ message, visible }) => (
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+// Handles the login/signup UI, validation, and authentication flow.
 
 const AuthContainer: React.FC = () => {
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
+
+  // Form state for login and signup flows.
   const [loginForm, setLoginForm] = useState<LoginForm>({
     email: "",
     password: "",
@@ -106,6 +110,8 @@ const AuthContainer: React.FC = () => {
     email: "",
     password: "",
   });
+
+  // Global input state used by both forms.
   const [rememberMe, setRememberMe] = useState(false);
   const [loginErrors, setLoginErrors] = useState<FormErrors<LoginForm>>({});
   const [signupErrors, setSignupErrors] = useState<FormErrors<User>>({});
@@ -113,6 +119,7 @@ const AuthContainer: React.FC = () => {
   const [toast, setToast] = useState({ message: "", visible: false });
 
   const showToast = useCallback((message: string) => {
+    // Show a temporary toast notification for success or error messages.
     setToast({ message, visible: true });
     setTimeout(() => setToast({ message: "", visible: false }), 3000);
   }, []);
@@ -130,6 +137,7 @@ const AuthContainer: React.FC = () => {
   };
 
   const switchMode = (nextMode: "login" | "signup") => {
+    // Reset errors and switch between login and signup UI.
     setMode(nextMode);
     setLoginErrors({});
     setSignupErrors({});
@@ -138,6 +146,7 @@ const AuthContainer: React.FC = () => {
   const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
 
+    // Validate login form fields before attempting authentication.
     const errs: FormErrors<LoginForm> = {};
     if (!loginForm.email.trim()) errs.email = "Email is required";
     else if (!EMAIL_RE.test(loginForm.email.trim())) errs.email = "Enter a valid email";
@@ -164,6 +173,7 @@ const AuthContainer: React.FC = () => {
   const handleSignup = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
 
+    // Validate signup form fields and show field-level errors if needed.
     const errs: FormErrors<User> = {};
     if (!signupForm.username.trim()) errs.username = "Username is required";
     if (!signupForm.email.trim()) errs.email = "Email is required";
@@ -203,10 +213,11 @@ const AuthContainer: React.FC = () => {
 
   return (
     <div style={styles.page}>
-      {/* Background blobs */}
+      {/* Background blobs behind the auth card */}
       <div style={{ ...styles.blob, ...styles.blob1 }} />
       <div style={{ ...styles.blob, ...styles.blob2 }} />
 
+      {/* Main auth card wrapper */}
       <div style={styles.card}>
         {/* Corner accents */}
         <div style={{ ...styles.corner, ...styles.cornerTL }} />
@@ -339,7 +350,7 @@ const AuthContainer: React.FC = () => {
 };
 
 // ─── Inline styles (typed) ────────────────────────────────────────────────────
-
+// Visual design definitions used by the auth page components.
 const LIME = "#c8f53d";
 const LIME_DIM = "#a3cc2a";
 

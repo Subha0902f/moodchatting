@@ -83,7 +83,51 @@ export interface UserPresenceUpdate {
   timestamp: string;
 }
 
-// ─── Socket Event Names (for string constants) ───────────────────────────────
+export type CallType = 'voice';
+
+export type WebRtcSessionDescription = Record<string, any>;
+export type WebRtcIceCandidate = Record<string, any>;
+
+export interface CallInitiatePayload {
+  callId: string;
+  callerId: string;
+  calleeId: string;
+  callType: CallType;
+  offer: WebRtcSessionDescription | null;
+  callerName?: string;
+  callerAvatar?: string;
+  timestamp: string;
+}
+
+export interface CallAnswerPayload {
+  callId: string;
+  answer: WebRtcSessionDescription;
+  calleeId: string;
+}
+
+export interface CallRejectPayload {
+  callId: string;
+  reason?: string;
+  calleeId: string;
+}
+
+export interface IceCandidatePayload {
+  callId: string;
+  candidate: WebRtcIceCandidate;
+  senderId: string;
+}
+
+export interface CallEndPayload {
+  callId: string;
+  reason?: string;
+  endedBy: string;
+}
+
+export interface CallStatusPayload {
+  callId: string;
+  status: 'calling' | 'ringing' | 'connected' | 'ended' | 'missed' | 'rejected' | 'failed';
+  message?: string;
+}
 
 export const ClientEventNames = {
   JOIN_CHAT: 'join_chat',
@@ -91,6 +135,11 @@ export const ClientEventNames = {
   TYPING_START: 'typing_start',
   TYPING_STOP: 'typing_stop',
   DISCONNECT: 'disconnect',
+  CALL_INITIATE: 'call_initiate',
+  CALL_ANSWER: 'call_answer',
+  CALL_REJECT: 'call_reject',
+  CALL_ICE_CANDIDATE: 'call_ice_candidate',
+  CALL_END: 'call_end',
 } as const;
 
 export const ServerEventNames = {
@@ -102,6 +151,13 @@ export const ServerEventNames = {
   TYPING_UPDATE: 'typing_update',
   REMINDER_NOTIFICATION: 'reminder_notification',
   ERROR: 'error',
+  INCOMING_CALL: 'incoming_call',
+  CALL_ANSWER: 'call_answer',
+  CALL_REJECTED: 'call_rejected',
+  ICE_CANDIDATE: 'ice_candidate',
+  CALL_ENDED: 'call_ended',
+  CALL_MISSED: 'call_missed',
+  CALL_STATUS: 'call_status',
 } as const;
 
 // ─── Socket Event Maps (for typed Socket.IO) ─────────────────────────────────
@@ -116,6 +172,11 @@ export interface ClientToServerEvents {
   typing_start: (payload: TypingPayload) => void;
   typing_stop: (payload: TypingPayload) => void;
   disconnect: () => void;
+  call_initiate: (payload: CallInitiatePayload) => void;
+  call_answer: (payload: CallAnswerPayload) => void;
+  call_reject: (payload: CallRejectPayload) => void;
+  call_ice_candidate: (payload: IceCandidatePayload) => void;
+  call_end: (payload: CallEndPayload) => void;
 }
 
 /**
@@ -131,6 +192,13 @@ export interface ServerToClientEvents {
   typing_update: (payload: TypingPayload) => void;
   reminder_notification: (payload: ReminderNotificationPayload) => void;
   error: (response: SocketErrorResponse) => void;
+  incoming_call: (payload: CallInitiatePayload) => void;
+  call_answer: (payload: CallAnswerPayload) => void;
+  call_rejected: (payload: CallRejectPayload) => void;
+  ice_candidate: (payload: IceCandidatePayload) => void;
+  call_ended: (payload: CallEndPayload) => void;
+  call_missed: (payload: CallRejectPayload) => void;
+  call_status: (payload: CallStatusPayload) => void;
 }
 
 // ─── Socket Data Structures ───────────────────────────────────────────────────
