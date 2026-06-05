@@ -11,7 +11,7 @@ import { BlogAPI } from "../services/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type BlogType = "free" | "paid";
+type BlogType = "free";
 type TabKey   = "create" | "read";
 
 interface Blog {
@@ -154,7 +154,7 @@ const CreateBlog: FC<{ onPublish: (blog: Blog) => Promise<boolean> | boolean }> 
   const [publishing, setPublishing] = useState(false);
 
   const wordCount  = content.trim() ? content.trim().split(/\s+/).length : 0;
-  const canPublish = title.trim().length > 0 && content.trim().length > 10;
+  const canPublish = title.trim().length > 0 && content.trim().length > 0;
 
   const publish = async () => {
     if (!canPublish || publishing) return;
@@ -234,8 +234,8 @@ const CreateBlog: FC<{ onPublish: (blog: Blog) => Promise<boolean> | boolean }> 
         {/* Type selector */}
         <div style={{ display: "flex", background: "#0a0c0e", borderRadius: 10, padding: 3, border: `1px solid ${C.border}`, gap: 2 }}>
           {([
-            { v: "free" as BlogType, label: "🆓 Free",  disabled: false },
-            { v: "paid" as BlogType, label: "💎 Paid",  disabled: true  },
+            { v: "free" as BlogType, label: "MoodChat Blogs",  disabled: false },
+           
           ]).map(o => (
             <button
               key={o.v}

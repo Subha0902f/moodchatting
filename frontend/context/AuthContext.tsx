@@ -2,14 +2,13 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { supabase } from "../services/supabaseclient";
 import type { Session, User } from "@supabase/supabase-js";
 
-const REMEMBER_ME_KEY = "moodchat-remember-me";
 
 export interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, username?: string, rememberMe?: boolean) => Promise<any>;
-  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<any>;
+  signUp: (email: string, password: string, username?: string) => Promise<any>;
+signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
 }
 
@@ -25,9 +24,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    const rememberMe =
-      typeof window !== "undefined" &&
-      localStorage.getItem(REMEMBER_ME_KEY) === "true";
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
@@ -50,17 +46,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data } = await supabase.auth.getSession();
         if (!mounted) return;
 
-        if (!rememberMe && data.session) {
-          await supabase.auth.signOut();
-          if (!mounted) return;
-          sessionAllowed.current = false;
-          setSession(null);
-          setUser(null);
-        } else {
-          sessionAllowed.current = !!data.session;
-          setSession(data.session ?? null);
-          setUser(data.session?.user ?? null);
-        }
+       if (data.session) {
+  sessionAllowed.current = true;
+  setSession(data.session);
+  setUser(data.session.user);
+} else {
+  sessionAllowed.current = false;
+  setSession(null);
+  setUser(null);
+}
       } catch {
         if (mounted) {
           sessionAllowed.current = false;
@@ -88,12 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       session,
       loading,
-      signUp: async (email: string, password: string, username?: string, rememberMe = false) => {
-        if (rememberMe) {
-          localStorage.setItem(REMEMBER_ME_KEY, "true");
-        } else {
-          localStorage.removeItem(REMEMBER_ME_KEY);
-        }
+      signUp: async (email: string, password: string, username?: string) => {
         sessionAllowed.current = true;
 
         const result = await supabase.auth.signUp({
@@ -122,22 +111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return result;
       },
-      signIn: async (email: string, password: string, rememberMe = false) => {
-        if (rememberMe) {
-          localStorage.setItem(REMEMBER_ME_KEY, "true");
-        } else {
-          localStorage.removeItem(REMEMBER_ME_KEY);
-        }
+     signIn: async (email: string, password: string)=> {
         sessionAllowed.current = true;
         return supabase.auth.signInWithPassword({ email, password });
       },
-      signOut: async () => {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(REMEMBER_ME_KEY);
-        }
-        sessionAllowed.current = false;
-        return supabase.auth.signOut();
-      },
+     signOut: async () => {
+  sessionAllowed.current = false;
+  return supabase.auth.signOut();
+   },
     }),
     [user, session, loading]
   );

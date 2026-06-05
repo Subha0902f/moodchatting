@@ -6,77 +6,48 @@ import {
 } from "react";
 import { useAuth } from "../context/AuthContext";
 import ChatWithSocket from "../components/ChatWithSocket";
-import {
-
-  MODE_META,
-  loadModeAssignments,
-} from "../services/modeStorage";
+import { MODE_META, loadModeAssignments } from "../services/modeStorage";
 import "./theme.css";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type ModeKey = "professional" | "fun" | "private" | "relaxment" | "allinone";
 
+interface FriendRecord {
+  id: string;
+  requesterId: string;
+  addresseeId: string;
+  status: string;
+}
+
+interface Profile {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  email?: string;
+}
+
 interface Contact {
-  id: number;
+  friendRecordId: string;
+  userId: string;
   name: string;
-  emoji: string;
-  bg: string;
-  online: boolean;
+  avatar: string;
   mode: ModeKey;
-  lastMsg: string;
-  lastTime: string;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const MODE_OPTIONS: Array<{ key: ModeKey | "all"; label: string; icon: string }> = [
-  { key: "all", label: "All Contacts", icon: "📇" },
-  { key: "professional", label: "Professional", icon: "💼" },
-  { key: "fun", label: "Fun", icon: "🎉" },
-  { key: "private", label: "Private", icon: "🔒" },
-  { key: "relaxment", label: "Relaxment", icon: "🌿" },
-  { key: "allinone", label: "All-in-One", icon: "⚡" },
+  { key: "all",          label: "All Contacts",  icon: "📇" },
+  { key: "professional", label: "Professional",  icon: "💼" },
+  { key: "fun",          label: "Fun",           icon: "🎉" },
+  { key: "private",      label: "Private",       icon: "🔒" },
+  { key: "relaxment",    label: "Relaxment",     icon: "🌿" },
+  { key: "allinone",     label: "All-in-One",    icon: "⚡" },
 ];
 
-const CONTACTS: Omit<Contact, "mode">[] = [
-  {
-    id: 1,
-    name: "Aria Nakamura",
-    emoji: "🌸",
-    bg: "#2a1e0a",
-    online: true,
-    lastMsg: "Loved your post! Tell me more about that plan.",
-    lastTime: "Now",
-  },
-  {
-    id: 2,
-    name: "Dev Sharma",
-    emoji: "🔥",
-    bg: "#0a1e2a",
-    online: false,
-    lastMsg: "Let's sync tomorrow, I'm free after lunch.",
-    lastTime: "11:24",
-  },
-  {
-    id: 3,
-    name: "Zoe Ellis",
-    emoji: "⚡",
-    bg: "#1e0a2a",
-    online: true,
-    lastMsg: "That concert was wild! Have you seen the highlights?",
-    lastTime: "10:07",
-  },
-  {
-    id: 4,
-    name: "Kai Watanabe",
-    emoji: "🌊",
-    bg: "#2a2a0a",
-    online: false,
-    lastMsg: "I'll send the files this evening.",
-    lastTime: "Yesterday",
-  },
-];
+const API_BASE = "http://localhost:5000";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -93,43 +64,49 @@ const C = {
 
 // ─── Avatar ────────────────────────────────────────────────────────────────────
 
-interface AvatarProps { emoji: string; bg?: string; size?: number; online?: boolean; }
+interface AvatarProps { name: string; avatarUrl?: string; size?: number; }
 
-const Avatar: FC<AvatarProps> = ({ emoji, bg = "#1a2e1a", size = 36, online = false }) => (
-  <div style={{
-    width: size, height: size, borderRadius: Math.round(size * 0.3),
-    flexShrink: 0, background: bg,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: size * 0.46, position: "relative",
-    border: "1.5px solid rgba(255,255,255,.06)",
-  }}>
-    {emoji}
-    {online && (
-      <div style={{
-        position: "absolute", bottom: 1, right: 1,
-        width: size * 0.22, height: size * 0.22, borderRadius: "50%",
-        background: "#c8f53d", border: `1.5px solid ${C.card}`,
-      }} />
-    )}
-  </div>
-);
+const Avatar: FC<AvatarProps> = ({ name, avatarUrl, size = 36 }) => {
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <div style={{
+      width: size, height: size,
+      borderRadius: Math.round(size * 0.3),
+      flexShrink: 0,
+      background: avatarUrl ? "transparent" : "#1a2e1a",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: size * 0.36, fontWeight: 700,
+      color: "#c8f53d",
+      border: "1.5px solid rgba(255,255,255,.06)",
+      overflow: "hidden",
+    }}>
+      {avatarUrl
+        ? <img src={avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        : initials
+      }
+    </div>
+  );
+};
 
 // ─── Mode Badge ────────────────────────────────────────────────────────────────
 
-interface ModeBadgeProps { modeKey: ModeKey; size?: "sm" | "lg"; }
-
-const ModeBadge: FC<ModeBadgeProps> = ({ modeKey, size = "sm" }) => {
+const ModeBadge: FC<{ modeKey: ModeKey }> = ({ modeKey }) => {
   const m = MODE_META[modeKey];
-  const big = size === "lg";
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 5,
       background: `${m.accent}15`, border: `1px solid ${m.accent}35`,
       color: m.accent, borderRadius: 20,
-      padding: big ? "4px 12px" : "3px 8px",
-      fontSize: big ? 12 : 10.5, fontWeight: 700, letterSpacing: ".4px", flexShrink: 0,
+      padding: "3px 8px",
+      fontSize: 10.5, fontWeight: 700, letterSpacing: ".4px", flexShrink: 0,
     }}>
-      <span style={{ fontSize: big ? 13 : 11 }}>{m.icon}</span>
+      <span style={{ fontSize: 11 }}>{m.icon}</span>
       {m.label}
     </div>
   );
@@ -155,7 +132,7 @@ const ChatItem: FC<ChatItemProps> = ({ contact, active, onClick }) => {
         transition: "all .15s",
       }}
     >
-      <Avatar emoji={contact.emoji} bg={contact.bg} size={42} online={contact.online} />
+      <Avatar name={contact.name} size={42} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
           <span style={{
@@ -163,12 +140,8 @@ const ChatItem: FC<ChatItemProps> = ({ contact, active, onClick }) => {
             color: active ? "#c8f53d" : C.text,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130,
           }}>{contact.name}</span>
-          <span style={{ fontSize: 10, color: C.sub, flexShrink: 0 }}>{contact.lastTime}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-          <span style={{ fontSize: 12, color: C.sub, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
-            {contact.lastMsg}
-          </span>
           <ModeBadge modeKey={contact.mode} />
         </div>
       </div>
@@ -176,157 +149,161 @@ const ChatItem: FC<ChatItemProps> = ({ contact, active, onClick }) => {
   );
 };
 
-// ─── Main App ──────────────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 const ChatUI: FC = () => {
-  const [activeId, setActiveId] = useState<number>(CONTACTS[0]?.id ?? 1);
+  const { user, session } = useAuth();
+  const userId = user?.id ?? "guest";
+  const userName = user?.email ?? "Guest";
+
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMode, setSelectedMode] = useState<ModeKey | "all">("all");
 
-  const { user } = useAuth();
-  const userId = user?.id ?? 'guest';
-  const userName = user?.email ?? 'Guest';
-
   const modeAssignments = useMemo(() => loadModeAssignments(), []);
-  const contactModeMap = useMemo(() => {
-    return (Object.keys(modeAssignments) as ModeKey[]).reduce<Record<number, ModeKey[]>>((map, modeKey) => {
-      modeAssignments[modeKey].users.forEach((userId) => {
-        map[userId] = map[userId] ? [...map[userId], modeKey] : [modeKey];
-      });
-      return map;
-    }, {});
-  }, [modeAssignments]);
 
-  const contacts: Contact[] = useMemo(() => CONTACTS.map((contact) => {
-    const assignedModes = contactModeMap[contact.id] ?? [];
-    return {
-      ...contact,
-      mode: assignedModes[0] ?? "allinone",
+  // ── Fetch real friends from backend ──────────────────────────────────────
+  useEffect(() => {
+    if (!session?.access_token) return;
+
+    const fetchFriends = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Step 1: get friend records
+        const friendsRes = await fetch(`${API_BASE}/friends`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (!friendsRes.ok) throw new Error("Failed to fetch friends");
+        const friendsData = await friendsRes.json();
+        const friendRecords: FriendRecord[] = friendsData.data ?? [];
+
+        if (friendRecords.length === 0) {
+          setContacts([]);
+          setLoading(false);
+          return;
+        }
+
+        // Step 2: for each friend record, get the OTHER user's profile
+        const profilePromises = friendRecords.map(async (record) => {
+          const otherUserId = record.requesterId === userId
+            ? record.addresseeId
+            : record.requesterId;
+
+          try {
+            const profileRes = await fetch(`${API_BASE}/users/${otherUserId}`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (!profileRes.ok) return null;
+            const profileData = await profileRes.json();
+            const profile: Profile = profileData.data ?? profileData;
+
+            // Get mode assignment for this user
+            const assignedModes = (Object.keys(modeAssignments) as ModeKey[]).filter(
+              (modeKey) => modeAssignments[modeKey].users?.includes(Number(otherUserId))
+            );
+
+            const contact: Contact = {
+              friendRecordId: record.id,
+              userId: otherUserId,
+              name: profile.full_name || profile.username || profile.email || "Unknown",
+              avatar: profile.avatar_url ?? "",
+              mode: assignedModes[0] ?? "allinone",
+            };
+
+            return contact;
+          } catch {
+            return null;
+          }
+        });
+
+        const resolved = (await Promise.all(profilePromises)).filter(Boolean) as Contact[];
+        setContacts(resolved);
+        if (resolved.length > 0) setActiveId(resolved[0].userId);
+      } catch (err: any) {
+        setError(err.message ?? "Failed to load friends");
+      } finally {
+        setLoading(false);
+      }
     };
-  }), [contactModeMap]);
 
-  const active = contacts.find(c => c.id === activeId) ?? null;
+    fetchFriends();
+  }, [session?.access_token, userId, modeAssignments]);
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesMode = selectedMode === "all"
-      ? true
-      : (contactModeMap[contact.id] ?? []).includes(selectedMode);
+  const activeContact = contacts.find((c) => c.userId === activeId) ?? null;
+
+  const filteredContacts = contacts.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesMode = selectedMode === "all" || c.mode === selectedMode;
     return matchesSearch && matchesMode;
   });
 
-  const selectedModeLabel = selectedMode === "all"
-    ? "All Contacts"
-    : MODE_META[selectedMode].label;
-
-  const noContactsText = searchTerm
-    ? "No contacts match your search"
-    : selectedMode !== "all"
-      ? `No contacts in ${selectedModeLabel} mode.`
-      : "No contacts yet.";
-
-  useEffect(() => {
-    if (filteredContacts.length > 0 && !filteredContacts.some(c => c.id === activeId)) {
-      setActiveId(filteredContacts[0].id);
-    }
-  }, [filteredContacts, activeId]);
-
-  const selectContact = (id: number) => {
-    setActiveId(id);
+  // ── Layout wrapper ────────────────────────────────────────────────────────
+  const gridLayout: React.CSSProperties = {
+    display: "grid", gridTemplateColumns: "300px minmax(0, 1fr)",
+    width: "100%", maxWidth: "100%", minWidth: 0,
+    height: "100%", minHeight: 0, background: C.bg,
+    fontFamily: "'DM Sans', sans-serif", overflow: "hidden",
   };
 
-  if (!active) {
-    return (
-      <div style={{
-        display: "grid", gridTemplateColumns: "300px minmax(0, 1fr)",
-        width: "100%", maxWidth: "100%", minWidth: 0,
-        height: "100%", minHeight: 0, background: C.bg,
-        fontFamily: "'DM Sans', sans-serif", overflow: "hidden",
-      }}>
-        <div style={{
-          background: C.card, borderRight: `1px solid ${C.border}`,
-          display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden",
-        }}>
-          <div style={{ padding: "18px 16px 14px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: "-.2px", marginBottom: 12 }}>
-              Mood<span style={{ color: "#c8f53d", textShadow: "0 0 20px rgba(200,245,61,.4)" }}>Chat</span>
-            </div>
-            <input
-              placeholder="Search conversations..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{
-                width: "100%", background: C.surface,
-                border: `1px solid ${C.border}`, borderRadius: 10,
-                padding: "8px 12px", color: C.text, fontFamily: "'DM Sans', sans-serif", fontSize: 12.5, outline: "none",
-              }}
-            />
-          </div>
-          {/* Contact list */}
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            {filteredContacts.length > 0 ? (
-              filteredContacts.map(c => (
-                <ChatItem
-                  key={c.id}
-                  contact={c}
-                  active={c.id === activeId}
-                  onClick={() => selectContact(c.id)}
-                />
-              ))
-            ) : (
-              <div style={{ padding: 18, color: C.sub, fontSize: 13, lineHeight: 1.6 }}>
-                {noContactsText}
-              </div>
-            )}
-          </div>
-        </div>
+  const leftPanel: React.CSSProperties = {
+    background: C.card, borderRight: `1px solid ${C.border}`,
+    display: "flex", flexDirection: "column",
+    height: "100%", minHeight: 0, overflow: "hidden",
+  };
 
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          height: "100%", minHeight: 0, background: "#07090f", color: C.sub,
-          textAlign: "center", padding: 32,
-        }}>
-          <div>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8 }}>
-              No chats to show
-            </div>
-            <div style={{ fontSize: 14, lineHeight: 1.6, maxWidth: 360 }}>
-              Add friends or start a conversation to see chats here.
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={gridLayout}>
+        <div style={leftPanel}>
+          <div style={{ padding: "18px 16px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: C.text }}>
+              Mood<span style={{ color: "#c8f53d" }}>Chat</span>
             </div>
           </div>
+          <div style={{ padding: 18, color: C.sub, fontSize: 13 }}>Loading friends...</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "#07090f", color: C.sub }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error state ───────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div style={gridLayout}>
+        <div style={leftPanel}>
+          <div style={{ padding: "18px 16px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: C.text }}>
+              Mood<span style={{ color: "#c8f53d" }}>Chat</span>
+            </div>
+          </div>
+          <div style={{ padding: 18, color: "#ff5555", fontSize: 13 }}>{error}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "#07090f", color: C.sub }}>
+          Could not load chats.
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "300px minmax(0, 1fr)",
-      width: "100%", maxWidth: "100%", minWidth: 0,
-      height: "100%", minHeight: 0, background: C.bg,
-      fontFamily: "'DM Sans', sans-serif", overflow: "hidden",
-    }}>
+    <div style={gridLayout}>
 
-      {/* ═══ LEFT PANEL — Contact list ═══ */}
-      <div style={{
-        background: C.card, borderRight: `1px solid ${C.border}`,
-        display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden",
-      }}>
-        {/* Header */}
+      {/* ═══ LEFT PANEL ═══ */}
+      <div style={leftPanel}>
         <div style={{ padding: "18px 16px 14px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{
-              fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800,
-              color: C.text, letterSpacing: "-.2px",
-            }}>
+            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: "-.2px" }}>
               Mood<span style={{ color: "#c8f53d", textShadow: "0 0 20px rgba(200,245,61,.4)" }}>Chat</span>
             </div>
-            <div style={{
-              width: 32, height: 32, borderRadius: 9,
-              background: C.surface, border: `1px solid ${C.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 15, cursor: "pointer", color: C.sub,
-            }}>✏️</div>
           </div>
 
           <div style={{ position: "relative", marginBottom: 14 }}>
@@ -334,7 +311,7 @@ const ChatUI: FC = () => {
             <input
               placeholder="Search conversations…"
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: "100%", background: C.surface,
                 border: `1px solid ${C.border}`, borderRadius: 10,
@@ -345,22 +322,21 @@ const ChatUI: FC = () => {
             />
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {MODE_OPTIONS.map((option) => {
-              const active = selectedMode === option.key;
+              const isActive = selectedMode === option.key;
               return (
                 <button
                   key={option.key}
                   onClick={() => setSelectedMode(option.key)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "10px 12px", borderRadius: 12,
-                    border: `1px solid ${active ? "#c8f53d" : C.border}`,
-                    background: active ? "rgba(200,245,61,.12)" : C.surface,
-                    color: active ? "#c8f53d" : C.text,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all .18s",
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "6px 10px", borderRadius: 10,
+                    border: `1px solid ${isActive ? "#c8f53d" : C.border}`,
+                    background: isActive ? "rgba(200,245,61,.12)" : C.surface,
+                    color: isActive ? "#c8f53d" : C.text,
+                    fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", transition: "all .18s",
                   }}
                 >
                   <span>{option.icon}</span>
@@ -372,15 +348,13 @@ const ChatUI: FC = () => {
               <button
                 onClick={() => setSelectedMode("all")}
                 style={{
-                  padding: "10px 12px", borderRadius: 12,
+                  padding: "6px 10px", borderRadius: 10,
                   border: `1px solid ${C.border}`,
-                  background: C.surface,
-                  color: C.sub,
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  background: C.surface, color: C.sub,
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
               >
-                Clear filter
+                Clear
               </button>
             )}
           </div>
@@ -389,25 +363,44 @@ const ChatUI: FC = () => {
         {/* Contact list */}
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredContacts.length > 0 ? (
-            filteredContacts.map(c => (
+            filteredContacts.map((c) => (
               <ChatItem
-                key={c.id}
+                key={c.userId}
                 contact={c}
-                active={c.id === activeId}
-                onClick={() => selectContact(c.id)}
+                active={c.userId === activeId}
+                onClick={() => setActiveId(c.userId)}
               />
             ))
           ) : (
             <div style={{ padding: "18px 16px", color: C.sub, fontSize: 13, textAlign: "center" }}>
-              {noContactsText}
+              {contacts.length === 0
+                ? "No friends yet. Add friends to start chatting."
+                : "No contacts match your search."}
             </div>
           )}
         </div>
       </div>
 
-      {/* ═══ RIGHT PANEL — Chat area ═══ */}
+      {/* ═══ RIGHT PANEL ═══ */}
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden", background: "#07090f", minWidth: 0 }}>
-        <ChatWithSocket chatId={active.id.toString()} userId={userId} userName={userName} />
+        {activeContact ? (
+          <ChatWithSocket
+            chatId={activeContact.userId}
+            userId={userId}
+            userName={userName}
+          />
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.sub, textAlign: "center", padding: 32 }}>
+            <div>
+              <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+                No chats yet
+              </div>
+              <div style={{ fontSize: 14, lineHeight: 1.6, maxWidth: 360 }}>
+                Add friends to start chatting.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

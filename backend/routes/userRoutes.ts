@@ -1,4 +1,3 @@
-import { Router } from "express";
 import { getMe, updateMe } from "../controllers/usercontroller"; 
 import { createCrudRoutes } from "./createCrudRoutes";
 
