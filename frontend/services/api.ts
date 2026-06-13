@@ -158,8 +158,25 @@ export const ChatAPI = {
 
 export const FriendAPI = {
   list: () => apiClient.get("/friends"),
-  add: (friendId: number) => apiClient.post("/friends", { friendId }),
-  remove: (friendId: number) => apiClient.delete(`/friends/${friendId}`),
+  
+  getUserProfile: (userId: string) =>
+  apiClient.get(`/users/${userId}`),
+  
+  requests: () => apiClient.get("/friends/requests/pending"),
+
+  add: (friendId: string) =>
+  apiClient.post("/friends/requests", { targetUserId: friendId }),
+  accept: (friendId: string) =>
+    apiClient.patch(`/friends/requests/${friendId}/accept`),
+
+  reject: (friendId: string) =>
+    apiClient.patch(`/friends/requests/${friendId}/reject`),
+
+  remove: (friendId: string) =>
+    apiClient.delete(`/friends/${friendId}`),
+
+ search: (query: string) =>
+  apiClient.get("/users/search", { params: { name: query } }),
 };
 
 export const ModeAPI = {

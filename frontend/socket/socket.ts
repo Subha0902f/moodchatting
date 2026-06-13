@@ -59,7 +59,7 @@ import { ClientEvents, ServerEvents } from '../types/socket.types';
  */
 const getEnvVar = (key: string): string | undefined => {
   try {
-    // @ts-expect-error - import.meta.env is a Vite feature
+    
     return import.meta.env?.[key] as string | undefined;
   } catch {
     return undefined;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -207,10 +208,12 @@ const ThemeToggle: React.FC = () => {
 
 const ProfileDropdown: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
   const [signingOut, setSigningOut] = useState(false);
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -219,6 +222,17 @@ const ProfileDropdown: React.FC = () => {
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
+
+  const handleOpen = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropPos({
+        top: rect.bottom + 10,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setOpen((o) => !o);
+  };
 
   const ddItems = [
     { icon: <Icon.User />,     label: "Profile",   to: "/profile"   },
@@ -247,7 +261,8 @@ const ProfileDropdown: React.FC = () => {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <div
-        onClick={() => setOpen((o) => !o)}
+        ref={triggerRef}
+        onClick={handleOpen}
         style={{
           display: "flex", alignItems: "center", gap: 10,
           background: T.surface, border: `1px solid ${T.border}`,
@@ -255,12 +270,53 @@ const ProfileDropdown: React.FC = () => {
           cursor: "pointer", transition: "all 0.18s ease",
         }}
       >
-        <div style={{
-          width: 26, height: 26, borderRadius: 8,
-          background: "var(--avatar-gradient)",
-          border: `1px solid ${T.limeBorder}`,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-        }}>🧑</div>
+      {open && createPortal(
+  <div style={{
+    position: "fixed",
+    top: dropPos.top,
+    right: dropPos.right,
+    background: "var(--dropdown-bg)",
+    border: `1px solid ${T.border2}`,
+    borderRadius: 14, padding: 6, minWidth: 180,
+    zIndex: 9999,
+    boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+  }}>
+    {ddItems.map((item) => (
+      <div
+        key={item.label}
+        onClick={() => { navigate(item.to); setOpen(false); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "9px 12px", borderRadius: 9,
+          fontSize: 13, color: T.text, cursor: "pointer",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-item-bg)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <span style={{ color: T.muted }}>{item.icon}</span>
+        {item.label}
+      </div>
+    ))}
+    <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+    <div
+      onClick={handleSignOut}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "9px 12px", borderRadius: 9,
+        fontSize: 13, color: "var(--logout-color)",
+        cursor: signingOut ? "wait" : "pointer",
+        opacity: signingOut ? 0.7 : 1,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <span style={{ color: "var(--logout-color)" }}><Icon.Logout /></span>
+      {signingOut ? "Signing out..." : "Sign out"}
+    </div>
+  </div>,
+  document.body
+)}
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.2px" }}>{displayName}</div>
           <div style={{ fontSize: 10, color: T.muted, letterSpacing: "0.3px" }}>Pro Member</div>
@@ -270,11 +326,14 @@ const ProfileDropdown: React.FC = () => {
 
       {open && (
         <div style={{
-          position: "absolute", top: "calc(100% + 10px)", right: 0,
-          background: "var(--dropdown-bg)", border: `1px solid ${T.border2}`,
-          borderRadius: 14, padding: 6, minWidth: 180, zIndex: 200,
+          position: "fixed",
+          top: dropPos.top,
+          right: dropPos.right,
+          background: "var(--dropdown-bg)",
+          border: `1px solid ${T.border2}`,
+          borderRadius: 14, padding: 6, minWidth: 180,
+          zIndex: 9999,
           boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
-          animation: "dropIn 0.2s cubic-bezier(0.34,1.4,0.64,1) both",
         }}>
           {ddItems.map((item) => (
             <div
@@ -319,7 +378,16 @@ const MoodChatLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname.split("/")[1] as NavKey | undefined;
-  const navKeys: NavKey[] = ["dashboard", "chat", "modes", "channels", "blog", "notepad", "settings"];
+ const navKeys: NavKey[] = [
+  "dashboard",
+  "chat",
+  "modes",
+  "channels",
+  "blog",
+  "notepad",
+  "settings",
+  "friends"
+];
   const activeNav: NavKey = currentPath && navKeys.includes(currentPath) ? currentPath : "dashboard";
 
   return (
@@ -330,7 +398,7 @@ const MoodChatLayout: React.FC = () => {
       height: "100vh", width: "100%", maxWidth: "100vw",
       fontFamily: "'Outfit', 'DM Sans', sans-serif",
       background: T.black,
-      overflow: "hidden",
+      overflow: "visible",
       boxSizing: "border-box",
     }}>
 
@@ -419,7 +487,7 @@ const MoodChatLayout: React.FC = () => {
         borderBottom: `1px solid ${T.border}`,
         display: "flex", alignItems: "center",
         padding: "0 24px", gap: 16,
-        position: "relative", zIndex: 20,
+        position: "relative", zIndex: 100,
         boxShadow: "var(--topbar-shadow)",
         minWidth: 0,
       }}>

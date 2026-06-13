@@ -157,7 +157,10 @@ const [signupErrors, setSignupErrors] = useState<FormErrors>({});
     }
 
     setIsSubmitting(true);
-    const { error } = await signIn(loginForm.email.trim(), loginForm.password, rememberMe);
+   const { error } = await signIn(
+  loginForm.email.trim(),
+  loginForm.password
+);
     setIsSubmitting(false);
 
     if (error) {
@@ -186,12 +189,11 @@ const [signupErrors, setSignupErrors] = useState<FormErrors>({});
     }
 
     setIsSubmitting(true);
-    const { data, error } = await signUp(
-      signupForm.email.trim(),
-      signupForm.password,
-      signupForm.username.trim(),
-      rememberMe
-    );
+   const { data, error } = await signUp(
+  signupForm.email.trim(),
+  signupForm.password,
+  signupForm.username.trim()
+);
     setIsSubmitting(false);
 
     if (error) {

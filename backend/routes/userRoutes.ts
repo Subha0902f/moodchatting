@@ -1,11 +1,11 @@
-import { getMe, updateMe } from "../controllers/usercontroller"; 
-import { createCrudRoutes } from "./createCrudRoutes";
+import { Router } from "express";
+import { getMe, updateMe, searchUsers, getUser } from "../controllers/usercontroller";
 
-// Create standard CRUD routes for 'user'
-const router = createCrudRoutes("user");
+const router = Router();
 
-// Add specific routes for the authenticated user
+router.get("/search", searchUsers);
 router.get("/me", getMe);
+router.get("/:id", getUser);
 router.put("/me", updateMe);
 router.patch("/me", updateMe);
 

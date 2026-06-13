@@ -1,3 +1,4 @@
+import Friends from "../pages/friends";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider, ThemeProvider } from "../context";
 import { useAuth } from "../context/AuthContext";
@@ -25,7 +26,11 @@ function RequireAuth() {
     );
   }
 
-  return session ? (
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
     <SocketProvider
       authToken={session.access_token}
       user={{
@@ -40,7 +45,25 @@ function RequireAuth() {
     >
       <MoodChatLayout />
     </SocketProvider>
-  ) : <Navigate to="/login" replace />;
+  );
+}
+
+function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#080808", color: "#c8f53d", fontFamily: "sans-serif" }}>
+        Loading...
+      </div>
+    );
+  }
+
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function App() {
@@ -49,10 +72,17 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/login"
+              element={
+                <RedirectIfAuthed>
+                  <Login />
+                </RedirectIfAuthed>
+              }
+            />
             <Route element={<RequireAuth />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/friends" element={<Friends />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/blog" element={<Blog />} />
@@ -62,7 +92,6 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/notepad" element={<Notepad />} />
             </Route>
-            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

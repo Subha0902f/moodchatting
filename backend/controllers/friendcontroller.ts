@@ -1,3 +1,4 @@
+import { supabaseAdmin as supabase } from "../config/supabase";
 import { Request, Response } from "express";
 import { User } from "../types/user.types";
 import FriendModel from "../models/friendModel";
@@ -58,8 +59,25 @@ export const getPendingRequests = async (req: RequestWithUser, res: Response) =>
     if (!userId) {
       throw createHttpError(401, "Authentication required");
     }
-    const requests = await FriendModel.getPendingRequests(userId);
-    res.status(200).json({ success: true, data: requests });
+    console.log("CURRENT USER ID:", userId);
+   const requests = await FriendModel.getPendingRequests(userId);
+
+const enriched = await Promise.all(
+  requests.map(async (r) => {
+    const { data: user } = await supabase
+      .from("users")
+      .select("id, username")
+      .eq("id", r.requesterId)
+      .single();
+
+    return {
+      ...r,
+      sender: user,
+    };
+  })
+);
+
+res.status(200).json({ success: true, data: enriched });
   } catch (error: any) {
     sendRouteError(res, error);
   }
@@ -202,9 +220,12 @@ export const getFriends = async (req: RequestWithUser, res: Response) => {
     }
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
+const friends = await FriendModel.getFriends(userId, limit, offset);
 
-    const friends = await FriendModel.getFriends(userId, limit, offset);
-    res.status(200).json({ success: true, data: friends });
+res.status(200).json({
+  success: true,
+  data: friends,
+});
   } catch (error: any) {
     sendRouteError(res, error);
   }

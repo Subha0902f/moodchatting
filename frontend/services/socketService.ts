@@ -124,7 +124,7 @@ class SocketService {
   private static instance: SocketService;
   private socket: Socket | null = null;
   private isConnected: boolean = false;
-  private authToken: string | null = null;
+
   private currentUser: User | null = null;
 
   // Event handler storage
@@ -162,14 +162,14 @@ class SocketService {
    * @returns The Socket instance
    */
   public connect(token: string, user: User): Socket {
-    this.authToken = token;
+   
     this.currentUser = user;
 
     // Get socket URL from environment variables (Vite)
     // Using a type-safe approach to access import.meta.env
     const getEnvVar = (key: string): string | undefined => {
       try {
-        // @ts-expect-error - import.meta.env is a Vite feature
+        
         return import.meta.env?.[key] as string | undefined;
       } catch {
         return undefined;
@@ -181,7 +181,7 @@ class SocketService {
                       'http://localhost:5000';
 
     // Remove protocol if present for socket.io
-    const cleanUrl = socketUrl.replace(/^https?:\/\//, '');
+    
 
     console.log('🔌 Connecting to Socket.io server:', socketUrl);
 

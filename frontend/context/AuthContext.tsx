@@ -94,16 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const createdUser = result.data.user;
         if (!result.error && createdUser) {
           try {
-            await supabase
-              .from("profiles")
-              .upsert({
-                id: createdUser.id,
-                username,
-                email,
-                full_name: username,
-                updated_at: new Date().toISOString(),
-              })
-              .throwOnError();
+           await supabase
+  .from("users")
+  .upsert({
+    id: createdUser.id,
+    "Email id": email,
+  })
+  .throwOnError();
           } catch {
             // Keep auth signup successful even if profile sync fails.
           }

@@ -12,7 +12,6 @@ export interface Friend {
   addresseeId: string;
   status: FriendStatus;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreateFriendPayload {
@@ -36,8 +35,8 @@ const FriendModel = {
       .from("friends")
       .insert([
         {
-          requester_id: payload.requesterId,
-          addressee_id: payload.addresseeId,
+          user_id: payload.requesterId,
+          friend_id: payload.addresseeId,
           status: payload.status || "pending",
         },
       ])
@@ -49,8 +48,8 @@ const FriendModel = {
     // Transform snake_case to camelCase
     return {
       id: data.id,
-      requesterId: data.requester_id,
-      addresseeId: data.addressee_id,
+      requesterId: data.user_id,
+      addresseeId: data.friend_id,
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -74,8 +73,8 @@ const FriendModel = {
     // Transform snake_case to camelCase
     return {
       id: data.id,
-      requesterId: data.requester_id,
-      addresseeId: data.addressee_id,
+      requesterId: data.user_id,
+      addresseeId: data.friend_id,
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -88,7 +87,7 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .or(`and(requester_id.eq.${userId1},addressee_id.eq.${userId2}),and(requester_id.eq.${userId2},addressee_id.eq.${userId1})`)
+      .or(`and(user_id.eq.${userId1},friend_id.eq.${userId2}),and(user_id.eq.${userId2},friend_id.eq.${userId1})`)
       .single();
 
     if (error) {
@@ -98,8 +97,8 @@ const FriendModel = {
 
     return {
       id: data.id,
-      requesterId: data.requester_id,
-      addresseeId: data.addressee_id,
+      requesterId: data.user_id,
+      addresseeId: data.friend_id,
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -112,15 +111,15 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .or(`and(requester_id.eq.${userId},status.eq.accepted),and(addressee_id.eq.${userId},status.eq.accepted)`)
+      .or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`)
       .range(offset, offset + limit - 1);
 
     if (error) throw new Error(`FriendModel.getFriends: ${error.message}`);
 
     return ((data ?? []) as any[]).map((friend) => ({
       id: friend.id,
-      requesterId: friend.requester_id,
-      addresseeId: friend.addressee_id,
+      requesterId: friend.user_id,
+      addresseeId: friend.friend_id,
       status: friend.status,
       createdAt: friend.created_at,
       updatedAt: friend.updated_at,
@@ -133,15 +132,15 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .eq("addressee_id", userId)
+      .eq("friend_id", userId)
       .eq("status", "pending");
 
     if (error) throw new Error(`FriendModel.getPendingRequests: ${error.message}`);
 
     return ((data ?? []) as any[]).map((friend) => ({
       id: friend.id,
-      requesterId: friend.requester_id,
-      addresseeId: friend.addressee_id,
+      requesterId: friend.user_id,
+      addresseeId: friend.friend_id,
       status: friend.status,
       createdAt: friend.created_at,
       updatedAt: friend.updated_at,
@@ -154,15 +153,15 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .eq("requester_id", userId)
+      .eq("user_id", userId)
       .eq("status", "pending");
 
     if (error) throw new Error(`FriendModel.getSentRequests: ${error.message}`);
 
     return ((data ?? []) as any[]).map((friend) => ({
       id: friend.id,
-      requesterId: friend.requester_id,
-      addresseeId: friend.addressee_id,
+      requesterId: friend.user_id,
+      addresseeId: friend.friend_id,
       status: friend.status,
       createdAt: friend.created_at,
       updatedAt: friend.updated_at,
@@ -174,7 +173,7 @@ const FriendModel = {
   async update(friendId: string, payload: UpdateFriendPayload): Promise<Friend> {
     const updateData: any = {};
     if (payload.status !== undefined) updateData.status = payload.status;
-    updateData.updated_at = new Date().toISOString();
+    
 
     const { data, error } = await supabase
       .from("friends")
@@ -187,8 +186,8 @@ const FriendModel = {
 
     return {
       id: data.id,
-      requesterId: data.requester_id,
-      addresseeId: data.addressee_id,
+      requesterId: data.user_id,
+      addresseeId: data.friend_id,
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -248,8 +247,8 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("id")
-      .eq("requester_id", requesterId)
-      .eq("addressee_id", addresseeId)
+        .eq("user_id", requesterId)
+        .eq("friend_id", addresseeId)
       .eq("status", "pending")
       .single();
 

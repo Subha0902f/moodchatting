@@ -14,6 +14,22 @@ export const userController = createCrudController("User", [
   },
 ]);
 
+export const getUser = async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("users")
+      .select(`id, email, username, bio, profile_picture_url`)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    return res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    return sendRouteError(res, error);
+  }
+};
+ 
 export const getMe = async (req: any, res: any) => {
   try {
     const userId = req.user?.id;
@@ -23,7 +39,7 @@ export const getMe = async (req: any, res: any) => {
 
     // Fetch user profile from Supabase
     const { data: profile, error } = await supabase
-      .from("profiles")
+      .from("users")
       .select("*")
       .eq("id", userId)
       .single();
@@ -61,6 +77,7 @@ export const updateMe = async (req: any, res: any) => {
     if (!req.body || Object.keys(req.body).length === 0) {
       throw createHttpError(400, "Profile update payload is required");
     }
+    
 
     // Map camelCase to snake_case for database
     const updateData: any = {};
@@ -77,7 +94,7 @@ export const updateMe = async (req: any, res: any) => {
 
     // Update user profile in Supabase
     const { data: updated, error } = await supabase
-      .from("profiles")
+      .from("users")
       .update(updateData)
       .eq("id", userId)
       .select()
@@ -104,6 +121,37 @@ export const updateMe = async (req: any, res: any) => {
       success: true,
       data: updated,
     });
+  } catch (error: any) {
+    return sendRouteError(res, error);
+  }
+};
+export const searchUsers = async (req: any, res: any) => {
+  try {
+    const currentUserId = req.user?.id;
+    const query = (req.query.name as string)?.trim();
+
+    if (!query || query.length < 2) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const { data, error: queryError } = await supabase
+      .from("users")
+     .select(`id, email, username, bio, profile_picture_url`)
+.or(`email.ilike.%${query}%,username.ilike.%${query}%`)
+      .neq("id", currentUserId)
+      .limit(10);
+
+    if (queryError) throw queryError;
+
+    const normalized = (data ?? []).map((u: any) => ({
+      id: u.id,
+      username: u.username || u["Email id"],
+      full_name: u.username || u["Email id"],
+      avatar_url: u.profile_picture_url,
+      bio: u.bio,
+    }));
+
+    return res.status(200).json({ success: true, data: normalized });
   } catch (error: any) {
     return sendRouteError(res, error);
   }
