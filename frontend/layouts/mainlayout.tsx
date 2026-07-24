@@ -499,21 +499,6 @@ const MoodChatLayout: React.FC = () => {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0 }}>
-          {/* Notifications */}
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: T.surface, border: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: T.muted, position: "relative",
-          }}>
-            <Icon.Bell />
-            <div style={{
-              position: "absolute", top: 6, right: 6,
-              width: 7, height: 7, background: T.lime,
-              borderRadius: "50%", border: `2px solid ${T.topbarBg}`,
-            }} />
-          </div>
-
           <ThemeToggle />
           <ProfileDropdown />
         </div>

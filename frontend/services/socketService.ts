@@ -176,12 +176,12 @@ class SocketService {
       }
     };
 
-    const socketUrl = getEnvVar('VITE_SOCKET_URL') || 
-                      getEnvVar('VITE_API_URL') || 
-                      'http://localhost:5000';
-
-    // Remove protocol if present for socket.io
-    
+    const socketUrl =
+      getEnvVar('VITE_SOCKET_URL') ||
+      getEnvVar('VITE_API_URL') ||
+      (typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.hostname}:5000`
+        : 'http://localhost:5000');
 
     console.log('🔌 Connecting to Socket.io server:', socketUrl);
 

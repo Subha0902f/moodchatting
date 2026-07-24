@@ -172,14 +172,20 @@ class SocketManager {
    * @returns The Socket instance
    */
   public connect(
-    authToken: string,
-    user: User,
-    customConfig?: Partial<SocketConfig>
-  ): Socket {
-    // Store auth token and user
-    this._state.authToken = authToken;
-    this._state.currentUser = user;
-    this._state.isConnecting = true;
+  authToken: string,
+  user: User,
+  customConfig?: Partial<SocketConfig>
+): Socket {
+  // ── Prevent duplicate connections ──────────────────────────────────────
+  if (this.socket && this.socket.connected) {
+    console.log('Socket already connected, reusing existing connection');
+    return this.socket;
+  }
+
+  // Store auth token and user
+  this._state.authToken = authToken;
+  this._state.currentUser = user;
+  this._state.isConnecting = true;
 
     // Merge configurations
     const config: SocketConfig = {
@@ -221,16 +227,17 @@ class SocketManager {
   private getSocketUrl(): string {
     const socketUrl = getEnvVar('VITE_SOCKET_URL');
     const apiUrl = getEnvVar('VITE_API_URL');
-    
+
     if (socketUrl) {
       return socketUrl;
     }
     if (apiUrl) {
       return apiUrl;
     }
-    
-    // Default to localhost for development
-    return 'http://localhost:5000';
+
+    return typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      : 'http://localhost:5000';
   }
 
   /**
@@ -620,10 +627,10 @@ class SocketManager {
    * @param chatId - The chat room ID to join
    */
   public joinChat(chatId: string): void {
-    if (!this.socket || !this._state.isConnected) {
-      console.warn('Cannot join chat: Socket not connected');
-      return;
-    }
+  if (!this.socket) {
+    console.warn('Cannot join chat: Socket not connected');
+    return;
+  }
 
     console.log('🚪 Joining chat room:', chatId);
     this._state.currentChatId = chatId;
@@ -634,11 +641,11 @@ class SocketManager {
    * Leave a chat room
    * @param chatId - The chat room ID to leave
    */
-  public leaveChat(chatId: string): void {
-    if (!this.socket || !this._state.isConnected) {
-      console.warn('Cannot leave chat: Socket not connected');
-      return;
-    }
+ public leaveChat(chatId: string): void {
+  if (!this.socket) {
+    console.warn('Cannot leave chat: Socket not connected');
+    return;
+  }
 
     console.log('🚪 Leaving chat room:', chatId);
     this.socket.emit(ClientEvents.LEAVE_CHAT, { chatId });
@@ -653,10 +660,10 @@ class SocketManager {
    * @param payload - The message payload
    */
   public sendMessage(payload: SendMessagePayload): void {
-    if (!this.socket || !this._state.isConnected) {
-      console.warn('Cannot send message: Socket not connected');
-      return;
-    }
+  if (!this.socket) {
+    console.warn('Cannot send message: Socket not connected');
+    return;
+  }
 
     console.log('📤 Sending message:', payload);
     this.socket.emit(ClientEvents.SEND_MESSAGE, {

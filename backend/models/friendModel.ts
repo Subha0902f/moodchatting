@@ -12,6 +12,7 @@ export interface Friend {
   addresseeId: string;
   status: FriendStatus;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateFriendPayload {
@@ -126,7 +127,36 @@ const FriendModel = {
     })) as Friend[];
   },
 
-  // ── Get pending friend requests for a user ────────────────────────────────
+  async getFriendsWithDetails(userId: string, limit = 50, offset = 0): Promise<(Friend & {
+    requester: { id: string; username: string | null; email: string | null; avatar_url: string | null; full_name: string | null };
+    addressee: { id: string; username: string | null; email: string | null; avatar_url: string | null; full_name: string | null };
+  })[]> {
+    const { data, error } = await supabase
+      .from("friends")
+      .select(`
+        *,
+        requester:users!user_id (
+          id,
+          username,
+          email,
+          avatar_url,
+          full_name
+        ),
+        addressee:users!friend_id (
+          id,
+          username,
+          email,
+          avatar_url,
+          full_name
+        )
+      `)
+      .or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`)
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(`FriendModel.getFriendsWithDetails: ${error.message}`);
+
+    return (data ?? []) as any[];
+  },
 
   async getPendingRequests(userId: string): Promise<Friend[]> {
     const { data, error } = await supabase

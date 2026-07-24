@@ -1,13 +1,3 @@
-/**
- * ChatWithSocket - Example Chat Component with Socket.io Integration
- * 
- * This component demonstrates how to integrate the socket system
- * into a React chat component with real-time messaging, typing indicators,
- * and online user presence.
- * 
- * @component
- */
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type {
   ReceivedMessagePayload,
@@ -16,36 +6,27 @@ import type {
 } from '../types/socket.types';
 import { useSocket, useSocketMessages, useSocketTyping } from '../context/SocketContext';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface Message extends Omit<ReceivedMessagePayload, 'senderId' | 'chatId'> {
   id: string;
   isOwn: boolean;
 }
 
 interface ChatWithSocketProps {
-  /** The chat room ID to connect to */
   chatId: string;
-  /** Current user's display name for typing indicators */
   userName: string;
-  /** Current user's ID */
   userId: string;
-  /** Optional: Custom message renderer */
+  contactName?: string;
   renderMessage?: (message: Message) => React.ReactNode;
-  /** Optional: Custom online users renderer */
   renderOnlineUsers?: (users: OnlineUser[]) => React.ReactNode;
-  /** Optional: Callback when a new message arrives */
   onNewMessage?: (message: ReceivedMessagePayload) => void;
 }
-
-// ─── Styles (inline for demo, use CSS modules in production) ──────────────────
 
 const styles = {
   container: {
     display: 'flex',
     height: '100%',
     flexDirection: 'column' as const,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#07090f',
     color: '#eee',
   },
   header: {
@@ -53,23 +34,24 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 16px',
-    backgroundColor: '#16213e',
-    borderBottom: '1px solid #0f3460',
+    backgroundColor: '#0d1117',
+    borderBottom: '1px solid #1e2530',
   },
   headerTitle: {
     fontSize: '18px',
     fontWeight: 600,
+    color: '#e6e6e6',
   },
   onlineCount: {
     fontSize: '12px',
-    color: '#4ade80',
+    color: '#c8f53d',
   },
   onlineUsers: {
     display: 'flex',
     gap: '8px',
     padding: '8px 16px',
-    backgroundColor: '#1a1a2e',
-    borderBottom: '1px solid #0f3460',
+    backgroundColor: '#07090f',
+    borderBottom: '1px solid #1e2530',
     overflowX: 'auto' as const,
   },
   onlineUser: {
@@ -77,7 +59,7 @@ const styles = {
     alignItems: 'center',
     gap: '4px',
     padding: '4px 8px',
-    backgroundColor: '#0f3460',
+    backgroundColor: '#1e2530',
     borderRadius: '12px',
     fontSize: '12px',
     whiteSpace: 'nowrap' as const,
@@ -86,7 +68,7 @@ const styles = {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
-    backgroundColor: '#4ade80',
+    backgroundColor: '#c8f53d',
   },
   messages: {
     flex: 1,
@@ -104,42 +86,43 @@ const styles = {
     maxWidth: '70%',
     padding: '10px 14px',
     borderRadius: isOwn ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-    backgroundColor: isOwn ? '#0f3460' : '#16213e',
-    border: isOwn ? 'none' : '1px solid #0f3460',
+    backgroundColor: isOwn ? '#1a3a1a' : '#1e2530',
+    border: isOwn ? '1px solid rgba(200,245,61,0.2)' : '1px solid #2a3040',
   }),
   messageSender: {
     fontSize: '11px',
-    color: '#4ade80',
+    color: '#c8f53d',
     marginBottom: '2px',
   },
   messageText: {
     fontSize: '14px',
     lineHeight: 1.4,
+    color: '#e6e6e6',
   },
   messageTime: {
     fontSize: '10px',
-    color: '#888',
+    color: '#666',
     marginTop: '4px',
     textAlign: 'right' as const,
   },
   typingIndicator: {
     padding: '8px 16px',
     fontSize: '12px',
-    color: '#888',
+    color: '#666',
     fontStyle: 'italic',
   },
   inputArea: {
     display: 'flex',
     gap: '8px',
     padding: '12px 16px',
-    backgroundColor: '#16213e',
-    borderTop: '1px solid #0f3460',
+    backgroundColor: '#0d1117',
+    borderTop: '1px solid #1e2530',
   },
   input: {
     flex: 1,
     padding: '10px 14px',
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #0f3460',
+    backgroundColor: '#1e2530',
+    border: '1px solid #2a3040',
     borderRadius: '20px',
     color: '#eee',
     fontSize: '14px',
@@ -147,11 +130,12 @@ const styles = {
   },
   sendButton: {
     padding: '10px 20px',
-    backgroundColor: '#0f3460',
+    backgroundColor: '#c8f53d',
     border: 'none',
     borderRadius: '20px',
-    color: '#eee',
+    color: '#0a0a0a',
     fontSize: '14px',
+    fontWeight: 700,
     cursor: 'pointer',
     transition: 'background-color 0.2s',
   },
@@ -159,35 +143,25 @@ const styles = {
     padding: '4px 16px',
     fontSize: '11px',
     textAlign: 'center' as const,
-    backgroundColor: '#16213e',
-    color: '#888',
+    backgroundColor: '#0d1117',
+    color: '#666',
   },
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-/**
- * ChatWithSocket Component
- * 
- * A fully functional chat component with real-time messaging,
- * typing indicators, and online user presence.
- */
 export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
   chatId,
   userName,
   userId,
+  contactName,
   renderMessage,
   renderOnlineUsers,
   onNewMessage,
 }) => {
-  // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isInputFocused, setIsInputFocused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Socket context
   const {
     isConnected,
     isConnecting,
@@ -196,14 +170,13 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     startTyping,
     stopTyping,
     requestOnlineUsers,
-    currentChatId,
   } = useSocket();
 
-  // Typing hook
   const { typingUserList } = useSocketTyping(chatId, userName);
 
-  // Subscribe to chat messages and join room automatically
-  useSocketMessages(chatId, (message: ReceivedMessagePayload) => {
+  // ── Message handler — stable ref so listener doesn't re-register ──────────
+  const handleNewMessage = useCallback((message: ReceivedMessagePayload) => {
+    console.log('Message received:', message);
     const newMessage: Message = {
       id: message.id || Date.now().toString(),
       message: message.message,
@@ -214,21 +187,20 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     };
 
     setMessages((prev) => {
-      if (prev.some((m) => m.id === newMessage.id)) {
-        return prev;
-      }
+      if (prev.some((m) => m.id === newMessage.id)) return prev;
       return [...prev, newMessage];
     });
 
     onNewMessage?.(message);
-  });
+  }, [userId, onNewMessage]);
+
+  useSocketMessages(chatId, handleNewMessage);
 
   useEffect(() => {
     if (!chatId) return;
     requestOnlineUsers(chatId);
   }, [chatId, requestOnlineUsers]);
 
-  // Scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -237,49 +209,29 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Handle typing indicator
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
 
-    if (value.trim() && !isInputFocused) {
-      startTyping(chatId, userName);
-    } else if (!value.trim()) {
-      stopTyping(chatId);
-    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    // Debounce typing stop
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+    if (value.trim()) {
+      startTyping(chatId, userName);
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-      if (!value.trim()) {
-        stopTyping(chatId);
-      }
-    }, 1000);
-  }, [chatId, userName, isInputFocused, startTyping, stopTyping]);
-
-  // Handle input focus
-  const handleFocus = useCallback(() => {
-    setIsInputFocused(true);
-    if (inputValue.trim()) {
-      startTyping(chatId, userName);
-    }
-  }, [chatId, userName, inputValue, startTyping]);
-
-  // Handle input blur
-  const handleBlur = useCallback(() => {
-    setIsInputFocused(false);
-    if (!inputValue.trim()) {
       stopTyping(chatId);
-    }
-  }, [chatId, inputValue, stopTyping]);
+    }, 1000);
+  }, [chatId, userName, startTyping, stopTyping]);
 
-  // Handle send
+  // ── Send — no isConnected gate so it always fires ─────────────────────────
   const handleSend = useCallback(() => {
     const text = inputValue.trim();
-    if (!text || !isConnected) return;
+      console.log('handleSend called, text:', text); 
+    if (!text) return;
+
+  console.log('Sending message:', { chatId, message: text });
+    console.log('Sending message:', { chatId, message: text });
 
     const payload: SendMessagePayload = {
       chatId,
@@ -290,9 +242,8 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     sendMessage(payload);
     setInputValue('');
     stopTyping(chatId);
-  }, [inputValue, isConnected, chatId, sendMessage, stopTyping]);
+  }, [inputValue, chatId, sendMessage, stopTyping]);
 
-  // Handle key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -300,32 +251,23 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     }
   }, [handleSend]);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       stopTyping(chatId);
     };
   }, [chatId, stopTyping]);
 
-  // Format time
   const formatTime = (timestamp: string) => {
     try {
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
       return '';
     }
   };
 
-  // Render a single message
   const renderMessageBubble = (msg: Message) => {
-    if (renderMessage) {
-      return renderMessage(msg);
-    }
-
+    if (renderMessage) return renderMessage(msg);
     return (
       <div key={msg.id} style={styles.messageWrapper(msg.isOwn)}>
         <div style={styles.messageBubble(msg.isOwn)}>
@@ -341,24 +283,19 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     );
   };
 
-  // Render online users
   const renderOnlineUsersList = () => {
-    if (renderOnlineUsers) {
-      return renderOnlineUsers(onlineUsers);
-    }
-
+    if (renderOnlineUsers) return renderOnlineUsers(onlineUsers);
     if (onlineUsers.length === 0) return null;
-
     return (
       <div style={styles.onlineUsers}>
         {onlineUsers.slice(0, 10).map((user) => (
           <div key={user.id} style={styles.onlineUser}>
             <div style={styles.onlineDot} />
-            <span>{user.fullName || user.email.split('@')[0]}</span>
+            <span>{user.fullName || user.email?.split('@')[0]}</span>
           </div>
         ))}
         {onlineUsers.length > 10 && (
-          <span style={{ fontSize: '12px', color: '#888' }}>
+          <span style={{ fontSize: '12px', color: '#666' }}>
             +{onlineUsers.length - 10} more
           </span>
         )}
@@ -366,7 +303,6 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
     );
   };
 
-  // Connection status message
   const connectionStatus = useMemo(() => {
     if (isConnecting) return 'Connecting...';
     if (isConnected) return 'Connected';
@@ -375,33 +311,18 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
-        <div>
-          <span style={styles.headerTitle}>Chat</span>
-          {currentChatId && (
-            <span style={{ fontSize: '12px', color: '#888', marginLeft: '8px' }}>
-              #{currentChatId.slice(0, 8)}
-            </span>
-          )}
-        </div>
-        <span style={styles.onlineCount}>
-          {onlineUsers.length} online
-        </span>
+        <span style={styles.headerTitle}>{contactName || 'Chat'}</span>
+        <span style={styles.onlineCount}>{onlineUsers.length} online</span>
       </div>
 
-      {/* Online Users */}
       {renderOnlineUsersList()}
 
-      {/* Connection Status */}
-      <div style={styles.connectionStatus}>
-        {connectionStatus}
-      </div>
+      <div style={styles.connectionStatus}>{connectionStatus}</div>
 
-      {/* Messages */}
       <div style={styles.messages}>
         {messages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>
+          <div style={{ textAlign: 'center', color: '#666', marginTop: '40px' }}>
             No messages yet. Say hello! 👋
           </div>
         ) : (
@@ -410,38 +331,30 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing Indicator */}
       {typingUserList.length > 0 && (
         <div style={styles.typingIndicator}>
           {typingUserList.length === 1
             ? `${typingUserList[0]} is typing...`
-            : typingUserList.length === 2
-              ? `${typingUserList.join(' and ')} are typing...`
-              : `${typingUserList[0]} and ${typingUserList.length - 1} others are typing...`
-          }
+            : `${typingUserList[0]} and ${typingUserList.length - 1} others are typing...`}
         </div>
       )}
 
-      {/* Input Area */}
       <div style={styles.inputArea}>
         <input
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
           onKeyPress={handleKeyPress}
           placeholder="Type a message..."
           style={styles.input}
-          disabled={!isConnected}
         />
         <button
           onClick={handleSend}
           style={{
             ...styles.sendButton,
-            opacity: !isConnected || !inputValue.trim() ? 0.5 : 1,
+            opacity: !inputValue.trim() ? 0.5 : 1,
           }}
-          disabled={!isConnected || !inputValue.trim()}
+          disabled={!inputValue.trim()}
         >
           Send
         </button>

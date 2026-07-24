@@ -7,25 +7,18 @@ export interface ModeMeta {
 }
 
 export interface Friend {
-  id: number;
+  id: string;
   name: string;
-  emoji: string;
-  bg: string;
-  online: boolean;
+  avatarUrl?: string;
+  email?: string;
+  online?: boolean;
 }
 
 export interface ModeState {
-  users: number[];
+  users: string[];
 }
 
 export const MODE_STORAGE_KEY = "moodchat.modeAssignments";
-
-export const ALL_FRIENDS: Friend[] = [
-  { id: 1, name: "Aria Nakamura", emoji: "🌸", bg: "#2a1e0a", online: true },
-  { id: 2, name: "Dev Sharma", emoji: "🔥", bg: "#0a1e2a", online: false },
-  { id: 3, name: "Zoe Ellis", emoji: "⚡", bg: "#1e0a2a", online: true },
-  { id: 4, name: "Kai Watanabe", emoji: "🌊", bg: "#2a2a0a", online: false },
-];
 
 export const MODE_META: Record<ModeKey, ModeMeta> = {
   professional: { label: "Professional", icon: "💼", accent: "#60a5fa" },
@@ -52,7 +45,7 @@ export const loadModeAssignments = (): Record<ModeKey, ModeState> => {
 
     return (Object.keys(INIT_MODES) as ModeKey[]).reduce((acc, key) => {
       const users = Array.isArray(parsed?.[key]?.users)
-        ? parsed[key].users.filter((id: unknown): id is number => typeof id === "number")
+        ? parsed[key].users.filter((id: unknown): id is string => typeof id === "string")
         : INIT_MODES[key].users;
       acc[key] = { users };
       return acc;

@@ -7,6 +7,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import ChatWithSocket from "../components/ChatWithSocket";
 import { MODE_META, loadModeAssignments } from "../services/modeStorage";
+import { FriendAPI } from "../services/api";
 import "./theme.css";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -15,17 +16,16 @@ type ModeKey = "professional" | "fun" | "private" | "relaxment" | "allinone";
 
 interface FriendRecord {
   id: string;
-  requesterId: string;
-  addresseeId: string;
+  requesterId: string;  // maps to user_id
+  addresseeId: string;  // maps to friend_id
   status: string;
-}
-
-interface Profile {
-  id: string;
-  username?: string;
-  full_name?: string;
-  avatar_url?: string;
-  email?: string;
+  profile: {
+    id: string;
+    username?: string;
+    full_name?: string;
+    avatar_url?: string;
+    email?: string;
+  };
 }
 
 interface Contact {
@@ -46,8 +46,6 @@ const MODE_OPTIONS: Array<{ key: ModeKey | "all"; label: string; icon: string }>
   { key: "relaxment",    label: "Relaxment",     icon: "🌿" },
   { key: "allinone",     label: "All-in-One",    icon: "⚡" },
 ];
-
-const API_BASE = "http://localhost:5000";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -159,6 +157,7 @@ const ChatUI: FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+   
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMode, setSelectedMode] = useState<ModeKey | "all">("all");
@@ -173,57 +172,30 @@ const ChatUI: FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // Step 1: get friend records
-        const friendsRes = await fetch(`${API_BASE}/friends`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const friendsRes = await FriendAPI.list();
+        const friendRecords: FriendRecord[] = friendsRes.data?.data ?? [];
+const transformed = friendRecords
+  .map((record) => {
+    const otherUserId = record.requesterId === userId
+      ? record.addresseeId
+      : record.requesterId;
 
-        if (!friendsRes.ok) throw new Error("Failed to fetch friends");
-        const friendsData = await friendsRes.json();
-        const friendRecords: FriendRecord[] = friendsData.data ?? [];
+    if (!otherUserId) return null;
 
-        if (friendRecords.length === 0) {
-          setContacts([]);
-          setLoading(false);
-          return;
-        }
+    const profile = record.profile;
+    const name = profile?.full_name || profile?.username || profile?.email || "Unknown";
 
-        // Step 2: for each friend record, get the OTHER user's profile
-        const profilePromises = friendRecords.map(async (record) => {
-          const otherUserId = record.requesterId === userId
-            ? record.addresseeId
-            : record.requesterId;
+    return {
+      friendRecordId: record.id,
+      userId: otherUserId,
+      name,
+      avatar: profile?.avatar_url ?? "",
+      mode: "allinone" as ModeKey,
+    } as Contact;
+  })
+  .filter(Boolean) as Contact[];
 
-          try {
-            const profileRes = await fetch(`${API_BASE}/users/${otherUserId}`, {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            if (!profileRes.ok) return null;
-            const profileData = await profileRes.json();
-            const profile: Profile = profileData.data ?? profileData;
-
-            // Get mode assignment for this user
-            const assignedModes = (Object.keys(modeAssignments) as ModeKey[]).filter(
-              (modeKey) => modeAssignments[modeKey].users?.includes(Number(otherUserId))
-            );
-
-            const contact: Contact = {
-              friendRecordId: record.id,
-              userId: otherUserId,
-              name: profile.full_name || profile.username || profile.email || "Unknown",
-              avatar: profile.avatar_url ?? "",
-              mode: assignedModes[0] ?? "allinone",
-            };
-
-            return contact;
-          } catch {
-            return null;
-          }
-        });
-
-        const resolved = (await Promise.all(profilePromises)).filter(Boolean) as Contact[];
-        setContacts(resolved);
-        if (resolved.length > 0) setActiveId(resolved[0].userId);
+        setContacts(transformed);
       } catch (err: any) {
         setError(err.message ?? "Failed to load friends");
       } finally {
@@ -384,11 +356,12 @@ const ChatUI: FC = () => {
       {/* ═══ RIGHT PANEL ═══ */}
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden", background: "#07090f", minWidth: 0 }}>
         {activeContact ? (
-          <ChatWithSocket
-            chatId={activeContact.userId}
-            userId={userId}
-            userName={userName}
-          />
+         <ChatWithSocket
+  chatId={[userId, activeContact.userId].sort().join('_')}
+  userId={userId}
+  userName={userName}
+  contactName={activeContact.name}
+/>
         ) : (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.sub, textAlign: "center", padding: 32 }}>
             <div>

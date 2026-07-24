@@ -1,5 +1,5 @@
 import Friends from "../pages/friends";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, ThemeProvider } from "../context";
 import { useAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
@@ -17,6 +17,7 @@ import MoodChatLayout from "../layouts/mainlayout.tsx";
 
 function RequireAuth() {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -27,7 +28,7 @@ function RequireAuth() {
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return (
@@ -50,6 +51,7 @@ function RequireAuth() {
 
 function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -60,7 +62,8 @@ function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   }
 
   if (session) {
-    return <Navigate to="/dashboard" replace />;
+    const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+    return <Navigate to={fromPath && fromPath !== "/login" ? fromPath : "/dashboard"} replace />;
   }
 
   return <>{children}</>;
@@ -72,7 +75,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route
               path="/login"
               element={

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, FC } from "react";
+import { FriendAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-
-const API_BASE = "http://localhost:5000";
 
 interface UserResult {
   id: string;
@@ -38,13 +37,10 @@ const SearchUsers: FC<Props> = ({ onClose }) => {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
-          `${API_BASE}/users/search?name=${encodeURIComponent(query)}`,
-          { headers: { Authorization: `Bearer ${session?.access_token}` } }
-        );
-        const data = await res.json();
-        setResults(data.data ?? []);
-      } catch {
+        const res = await FriendAPI.search(query);
+        setResults(res.data?.data ?? []);
+      } catch (error: any) {
+        console.warn("[searchUser] search failed:", error?.message || error);
         setResults([]);
       } finally {
         setSearching(false);
@@ -52,30 +48,22 @@ const SearchUsers: FC<Props> = ({ onClose }) => {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [query, session?.access_token]);
+  }, [query]);
 
   const sendRequest = async (targetUserId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/friends/requests`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ targetUserId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrors((prev) => ({ ...prev, [targetUserId]: data.message ?? "Failed to send request" }));
-        return;
-      }
-
+      await FriendAPI.add(targetUserId);
       setSentRequests((prev) => new Set(prev).add(targetUserId));
-      setErrors((prev) => { const next = { ...prev }; delete next[targetUserId]; return next; });
-    } catch {
-      setErrors((prev) => ({ ...prev, [targetUserId]: "Network error" }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[targetUserId];
+        return next;
+      });
+    } catch (error: any) {
+      setErrors((prev) => ({
+        ...prev,
+        [targetUserId]: error?.response?.data?.message || error?.message || "Failed to send request",
+      }));
     }
   };
 
@@ -207,3 +195,4 @@ const SearchUsers: FC<Props> = ({ onClose }) => {
 };
 
 export default SearchUsers;
+

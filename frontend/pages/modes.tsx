@@ -5,8 +5,9 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import { useAuth } from "../context/AuthContext";
+import { FriendAPI } from "../services/api";
 import {
-  ALL_FRIENDS,
   MODE_META,
   loadModeAssignments,
   saveModeAssignments,
@@ -23,6 +24,13 @@ type ModalIntent = "add" | "remove" | "edit";
 interface ModalState {
   modeKey?: ModeKey;
   intent: ModalIntent;
+}
+
+interface EditModalProps {
+  modeKey: ModeKey;
+  meta: ModeMeta;
+  onClose: () => void;
+  onSave: (modeKey: ModeKey, newLabel: string) => void;
 }
 
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
@@ -42,21 +50,49 @@ const C = {
 // ─── Avatar ────────────────────────────────────────────────────────────────────
 
 interface AvatarProps {
-  emoji: string;
-  bg?: string;
+  name: string;
+  avatarUrl?: string;
   size?: number;
   online?: boolean;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ emoji, bg = "#1a2e1a", size = 32, online = false }) => (
+interface Friend {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  email?: string;
+  online?: boolean;
+}
+
+const hashColor = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 24%)`;
+};
+
+const getInitials = (value: string) => {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+};
+
+const Avatar: React.FC<AvatarProps> = ({ name, avatarUrl, size = 32, online = false }) => (
   <div style={{
     width: size, height: size, borderRadius: Math.round(size * 0.32),
-    flexShrink: 0, background: bg,
+    flexShrink: 0, background: avatarUrl ? "transparent" : hashColor(name),
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: size * 0.48, position: "relative",
-    border: "1.5px solid rgba(255,255,255,.07)",
+    border: "1.5px solid rgba(255,255,255,.07)", overflow: "hidden",
   }}>
-    {emoji}
+    {avatarUrl ? (
+      <img src={avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    ) : (
+      <span style={{ color: "#c8f53d", fontWeight: 700 }}>{getInitials(name)}</span>
+    )}
     {online && (
       <div style={{
         position: "absolute", bottom: 1, right: 1,
@@ -85,11 +121,13 @@ function useToast(): [string, boolean, (msg: string) => void] {
 
 // ─── Edit Modal ────────────────────────────────────────────────────────────────
 
-interface EditModalProps {
+interface ModalProps {
   modeKey: ModeKey;
-  meta: ModeMeta;
+  intent: ModalIntent;
+  modes: Record<ModeKey, ModeState>;
+  friends: Friend[];
   onClose: () => void;
-  onSave: (key: ModeKey, newLabel: string) => void;
+  onSave: (key: ModeKey, selectedIds: string[]) => void;
 }
 
 const EditModal: React.FC<EditModalProps> = ({ modeKey, meta, onClose, onSave }) => {
@@ -182,16 +220,17 @@ const EditModal: React.FC<EditModalProps> = ({ modeKey, meta, onClose, onSave })
 interface ModeCardProps {
   modeKey: ModeKey;
   meta: ModeMeta;
-  userIds: number[];
+  userIds: string[];
+  friends: Friend[];
   onOpenModal: (key: ModeKey, intent: ModalIntent) => void;
-  onRemoveUser: (key: ModeKey, userId: number) => void;
+  onRemoveUser: (key: ModeKey, userId: string) => void;
 }
 
-const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, onOpenModal, onRemoveUser }) => {
+const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, friends, onOpenModal, onRemoveUser }) => {
   const [hovered, setHovered] = useState(false);
-  const users  = ALL_FRIENDS.filter(f => userIds.includes(f.id));
-  const shown  = users.slice(0, 4);
-  const extra  = users.length - shown.length;
+  const users = friends.filter(f => userIds.includes(f.id));
+  const shown = users.slice(0, 4);
+  const extra = users.length - shown.length;
 
   return (
     <div
@@ -257,7 +296,7 @@ const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, onOpenModal
                   fontSize: 12, color: C.text, fontWeight: 500,
                   transition: "border-color .15s",
                 }}>
-                  <Avatar emoji={u.emoji} bg={u.bg} size={20} online={u.online} />
+                  <Avatar name={u.name} avatarUrl={u.avatarUrl} size={20} online={u.online} />
                   {u.name.split(" ")[0]}
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemoveUser(modeKey, u.id); }}
@@ -283,7 +322,7 @@ const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, onOpenModal
               <div style={{ display: "flex" }}>
                 {shown.slice(0, 5).map((u, i) => (
                   <div key={u.id} style={{ marginLeft: i ? -8 : 0, zIndex: 5 - i, position: "relative" }}>
-                    <Avatar emoji={u.emoji} bg={u.bg} size={26} online={u.online} />
+                    <Avatar name={u.name} avatarUrl={u.avatarUrl} size={26} online={u.online} />
                   </div>
                 ))}
               </div>
@@ -322,18 +361,11 @@ const ModeCard: React.FC<ModeCardProps> = ({ modeKey, meta, userIds, onOpenModal
 
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 
-interface ModalProps {
-  modeKey: ModeKey;
-  intent: ModalIntent;
-  modes: Record<ModeKey, ModeState>;
-  onClose: () => void;
-  onSave: (key: ModeKey, selectedIds: number[]) => void;
-}
 
-const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }) => {
+const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, friends, onClose, onSave }) => {
   const meta = MODE_META[modeKey];
   const currentIds = modes[modeKey]?.users ?? [];
-  const [selected, setSelected] = useState<Set<number>>(new Set(currentIds));
+  const [selected, setSelected] = useState<Set<string>>(new Set(currentIds));
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -346,10 +378,10 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? ALL_FRIENDS.filter(f => f.name.toLowerCase().includes(q)) : ALL_FRIENDS;
-  }, [query]);
+    return q ? friends.filter(f => f.name.toLowerCase().includes(q)) : friends;
+  }, [query, friends]);
 
-  const toggle = (id: number) => {
+  const toggle = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -358,11 +390,11 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
   };
 
   const addAllFriends = () => {
-    const allFriendIds = ALL_FRIENDS.map(f => f.id);
+    const allFriendIds = friends.map(f => f.id);
     setSelected(new Set(allFriendIds));
   };
 
-  const allFriendsAdded = ALL_FRIENDS.every(f => selected.has(f.id));
+  const allFriendsAdded = friends.length > 0 && friends.every(f => selected.has(f.id));
 
   const hasChanged =
     [...selected].sort().join(",") !== [...currentIds].sort().join(",");
@@ -438,7 +470,7 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
           {intent === 'add' && (
             <button
               onClick={addAllFriends}
-              disabled={allFriendsAdded || ALL_FRIENDS.length === 0}
+              disabled={allFriendsAdded || friends.length === 0}
               style={{
                 padding: "10px 16px",
                 background: C.surface,
@@ -447,8 +479,8 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
                 color: C.text,
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: (allFriendsAdded || ALL_FRIENDS.length === 0) ? "not-allowed" : "pointer",
-                opacity: (allFriendsAdded || ALL_FRIENDS.length === 0) ? 0.5 : 1,
+                cursor: (allFriendsAdded || friends.length === 0) ? "not-allowed" : "pointer",
+                opacity: (allFriendsAdded || friends.length === 0) ? 0.5 : 1,
               }}>Add All</button>
           )}
         </div>
@@ -456,7 +488,9 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
         {/* Friend list */}
         <div style={{ maxHeight: 300, overflowY: "auto", padding: "10px 22px" }}>
           {filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px 0", color: C.sub, fontSize: 13 }}>No friends found</div>
+            <div style={{ textAlign: "center", padding: "24px 0", color: C.sub, fontSize: 13 }}>
+              No friends found
+            </div>
           ) : (
             filtered.map(f => {
               const sel = selected.has(f.id);
@@ -472,7 +506,7 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
                     transition: "all .15s",
                   }}
                 >
-                  <Avatar emoji={f.emoji} bg={f.bg} size={36} online={f.online} />
+                  <Avatar name={f.name} avatarUrl={f.avatarUrl} size={36} online={f.online} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.name}</div>
                     <div style={{ fontSize: 11, color: C.sub, marginTop: 1 }}>
@@ -536,19 +570,53 @@ const Modal: React.FC<ModalProps> = ({ modeKey, intent, modes, onClose, onSave }
 // ─── Root App ──────────────────────────────────────────────────────────────────
 
 const ModesContainer: React.FC = () => {
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [modes, setModes] = useState<Record<ModeKey, ModeState>>(() => loadModeAssignments());
   const [modeMeta, setModeMeta] = useState(MODE_META);
   const [modal, setModal] = useState<ModalState | null>(null);
+  const [loadingFriends, setLoadingFriends] = useState(true);
+  const [friendError, setFriendError] = useState<string | null>(null);
   const [toastMsg, toastVis, fire] = useToast();
+
+  const { user } = useAuth();
 
   useEffect(() => {
     saveModeAssignments(modes);
   }, [modes]);
 
+  useEffect(() => {
+    const loadFriends = async () => {
+      setLoadingFriends(true);
+      setFriendError(null);
+      try {
+        const res = await FriendAPI.list();
+        const records = res.data?.data ?? [];
+        setFriends(records.map((record: any) => {
+          const otherUserId = record.requesterId === user?.id ? record.addresseeId : record.requesterId;
+          const profile = record.profile ?? {};
+          return {
+            id: otherUserId,
+            name: profile.full_name || profile.username || profile.email || otherUserId,
+            avatarUrl: profile.avatar_url ?? undefined,
+            email: profile.email ?? undefined,
+            online: false,
+          };
+        }));
+      } catch (error: any) {
+        setFriendError(error.message ?? "Failed to load friends");
+      } finally {
+        setLoadingFriends(false);
+      }
+    };
+    if (user?.id) {
+      loadFriends();
+    }
+  }, [user?.id]);
+
   const openModal = (key: ModeKey, intent: ModalIntent) => setModal({ modeKey: key, intent });
   const closeModal = () => setModal(null);
 
-  const saveModal = (modeKey: ModeKey, selectedIds: number[]) => {
+  const saveModal = (modeKey: ModeKey, selectedIds: string[]) => {
     setModes(prev => ({ ...prev, [modeKey]: { users: selectedIds } }));
     fire(`${modeMeta[modeKey].label} mode updated ✓`);
     closeModal();
@@ -566,13 +634,13 @@ const ModesContainer: React.FC = () => {
     closeModal();
   };
 
-  const removeUser = (modeKey: ModeKey, userId: number) => {
+  const removeUser = (modeKey: ModeKey, userId: string) => {
     setModes(prev => ({
       ...prev,
       [modeKey]: { users: prev[modeKey].users.filter(id => id !== userId) },
     }));
-    const user = ALL_FRIENDS.find(f => f.id === userId);
-    fire(`${user?.name} removed from ${MODE_META[modeKey].label}`);
+    const user = friends.find(f => f.id === userId);
+    fire(`${user?.name || "Friend"} removed from ${MODE_META[modeKey].label}`);
   };
 
   return (
@@ -605,6 +673,15 @@ const ModesContainer: React.FC = () => {
           <p style={{ fontSize: 13, color: C.sub, marginTop: 6 }}>
             Control who sees what — configure each mode with your chosen people.
           </p>
+          {(loadingFriends || friendError) && (
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              {loadingFriends ? (
+                <span style={{ color: C.sub }}>Loading friends...</span>
+              ) : (
+                friendError && <span style={{ color: "#ff6b6b" }}>{friendError}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Modes grid */}
@@ -615,13 +692,14 @@ const ModesContainer: React.FC = () => {
         }}>
           {(Object.keys(MODE_META) as ModeKey[]).map(key => (
             <ModeCard
-              key={key}
-              modeKey={key}
-              meta={modeMeta[key]}
-              userIds={modes[key].users}
-              onOpenModal={openModal}
-              onRemoveUser={removeUser}
-            />
+  key={key}
+  modeKey={key}
+  meta={modeMeta[key]}
+  userIds={modes[key].users}
+  friends={friends}
+  onOpenModal={openModal}
+  onRemoveUser={removeUser}
+/>
           ))}
         </div>
       </div>
@@ -632,6 +710,7 @@ const ModesContainer: React.FC = () => {
           modeKey={modal.modeKey}
           intent={modal.intent}
           modes={modes}
+          friends={friends}
           onClose={closeModal}
           onSave={saveModal}
         />
