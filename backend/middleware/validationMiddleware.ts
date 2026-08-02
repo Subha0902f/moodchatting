@@ -50,7 +50,7 @@ export const validateRequest = (
   rules: ValidationRule[],
   location: 'body' | 'params' | 'query' = 'body'
 ) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     const errors: FieldValidationError[] = [];
     const data = req[location];
 

@@ -143,15 +143,19 @@ export const blockUser = async (req: RequestWithUser, res: Response) => {
 export const getFriends = async (req: RequestWithUser, res: Response) => {
   try {
     const userId = req.user?.id;
+    console.log('[friendController.getFriends] req.user:', req.user);
     if (!userId) throw createHttpError(401, "Authentication required");
 
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
     const friends = await FriendModel.getFriends(userId, limit, offset);
+    console.log('[friendController.getFriends] raw friends result:', friends);
+
     const enrichedFriends = await Promise.all(
       friends.map(async (friend) => {
         const otherUserId = friend.requesterId === userId ? friend.addresseeId : friend.requesterId;
+        console.log('[friendController.getFriends] friend record:', friend, 'otherUserId:', otherUserId);
 
         if (!otherUserId) {
           return { ...friend, profile: null };
@@ -159,9 +163,11 @@ export const getFriends = async (req: RequestWithUser, res: Response) => {
 
         const { data: profile, error } = await supabase
           .from("users")
-          .select("id, username, full_name, email, avatar_url")
+          .select("id, username, full_name, email, avatar_url, profile_picture_url, bio")
           .eq("id", otherUserId)
           .maybeSingle();
+
+        console.log('[friendController.getFriends] profile lookup:', { otherUserId, profile, error: error?.message ?? null });
 
         if (error) {
           return { ...friend, profile: null };
@@ -171,6 +177,7 @@ export const getFriends = async (req: RequestWithUser, res: Response) => {
       })
     );
 
+    console.log('[friendController.getFriends] final response body count:', enrichedFriends.length);
     res.status(200).json({ success: true, data: enrichedFriends });
   } catch (error: any) {
     sendRouteError(res, error);

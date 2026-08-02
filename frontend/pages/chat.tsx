@@ -179,23 +179,26 @@ const transformed = friendRecords
     const otherUserId = record.requesterId === userId
       ? record.addresseeId
       : record.requesterId;
-
     if (!otherUserId) return null;
 
     const profile = record.profile;
-    const name = profile?.full_name || profile?.username || profile?.email || "Unknown";
-
-    return {
+    const name =
+      profile?.full_name ||
+      profile?.username ||
+      profile?.email ||
+      "Unknown";
+ return {
       friendRecordId: record.id,
       userId: otherUserId,
       name,
       avatar: profile?.avatar_url ?? "",
-      mode: "allinone" as ModeKey,
-    } as Contact;
+      mode: "allinone",
+    };
   })
   .filter(Boolean) as Contact[];
 
         setContacts(transformed);
+        
       } catch (err: any) {
         setError(err.message ?? "Failed to load friends");
       } finally {

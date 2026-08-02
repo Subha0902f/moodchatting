@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, NextFunction } from 'express';
 import { UserRole } from '../types/user.types';
 import { AppError } from '../types/error.types';
 
@@ -32,7 +32,7 @@ import { AppError } from '../types/error.types';
  * @returns Express middleware function
  */
 export const restrictToRoles = (...allowedRoles: UserRole[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, next: NextFunction) => {
     // Check if user is authenticated
     if (!req.user) {
       throw new AppError('You must be logged in to access this resource', 401);
@@ -59,7 +59,7 @@ export const restrictToRoles = (...allowedRoles: UserRole[]) => {
  * @returns Express middleware function
  */
 export const hasAnyRole = (...roles: UserRole[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('Authentication required', 401);
     }
@@ -82,7 +82,7 @@ export const hasAnyRole = (...roles: UserRole[]) => {
  * @returns Express middleware function
  */
 export const hasAllRoles = (...roles: UserRole[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('Authentication required', 401);
     }
@@ -116,7 +116,7 @@ export const requireModeratorOrAdmin = restrictToRoles(
  * This is less strict than protect() as it doesn't verify the token again
  * (assuming protect() was already called)
  */
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = (req: Request, next: NextFunction) => {
   if (!req.user) {
     throw new AppError('You must be logged in to access this resource', 401);
   }
@@ -138,7 +138,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
  * );
  */
 export const requireOwnerOrAdmin = (getResourceOwnerId: (req: Request) => string) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('You must be logged in to access this resource', 401);
     }
@@ -169,7 +169,7 @@ export const requireOwnerOrAdmin = (getResourceOwnerId: (req: Request) => string
  * @returns Express middleware function
  */
 export const requireOwner = (getResourceOwnerId: (req: Request) => string) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('You must be logged in to access this resource', 401);
     }
@@ -218,7 +218,7 @@ export const requireOwner = (getResourceOwnerId: (req: Request) => string) => {
 export const checkResourcePermission = (
   checkPermission: (req: Request) => Promise<boolean>
 ) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('Authentication required', 401);
     }

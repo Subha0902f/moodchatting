@@ -18,7 +18,7 @@ const STORAGE_KEY = "moodchat-session";
 
 function getCachedSession(): Session | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = window.sessionStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
 
   try {
@@ -146,8 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      signOut: async () => {
   sessionAllowed.current = false;
   if (typeof window !== "undefined") {
-    window.localStorage.removeItem("moodchat-session");
-    window.localStorage.removeItem("authToken");
+    window.sessionStorage.removeItem("moodchat-session");
+    window.sessionStorage.removeItem("authToken");
   }
   return supabase.auth.signOut();
    },

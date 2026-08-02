@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { envConfig } from '../config/env.config';
-import { AppError, ErrorType, ErrorResponse } from '../types/error.types';
+import { AppError, ErrorResponse } from '../types/error.types';
 import { SupabaseError } from './supabaseError';
 
 /**
@@ -19,7 +19,6 @@ import { SupabaseError } from './supabaseError';
  */
 export const globalErrorHandler = (
   err: Error | AppError | SupabaseError,
-  req: Request,
   res: Response,
   _next: NextFunction
 ) => {
@@ -102,7 +101,7 @@ export const handleSpecificErrors = () => {
   };
 
   // Handle JWT errors
-  const handleJWTError = (err: any, res: Response) => {
+  const handleJWTError = (res: Response) => {
     return res.status(401).json({
       success: false,
       message: 'Invalid or expired token'
@@ -156,7 +155,7 @@ export const notFoundHandler = (
  * Useful for handling errors in route-specific middleware chains
  */
 export const createErrorHandler = (operation: string) => {
-  return (err: Error, req: Request, res: Response, next: NextFunction) => {
+  return (err: Error, res: Response, next: NextFunction) => {
     console.error(`Error in ${operation}:`, err);
     
     if (!res.headersSent) {

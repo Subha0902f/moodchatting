@@ -124,6 +124,7 @@ export const protect = asyncHandler(
       }
 
       req.user = user;
+      console.log('[auth] protect user attached:', { id: user.id, email: user.email, role: user.role });
       next();
     } catch (error) {
       // Handle JWT verification errors

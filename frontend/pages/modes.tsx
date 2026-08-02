@@ -594,6 +594,7 @@ const ModesContainer: React.FC = () => {
         setFriends(records.map((record: any) => {
           const otherUserId = record.requesterId === user?.id ? record.addresseeId : record.requesterId;
           const profile = record.profile ?? {};
+          console.log(records);
           return {
             id: otherUserId,
             name: profile.full_name || profile.username || profile.email || otherUserId,

@@ -25,7 +25,7 @@ const apiClient: AxiosInstance = axios.create({
 
 const getStoredAuthToken = () => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("authToken");
+  return window.sessionStorage.getItem("authToken");
 };
 
 const getAuthToken = async () => {
@@ -43,9 +43,9 @@ export const setAuthToken = (token: string | null) => {
   if (typeof window === "undefined") return;
 
   if (token) {
-    localStorage.setItem("authToken", token);
+    window.sessionStorage.setItem("authToken", token);
   } else {
-    localStorage.removeItem("authToken");
+    window.sessionStorage.removeItem("authToken");
   }
 };
 

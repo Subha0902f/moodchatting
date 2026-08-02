@@ -237,16 +237,23 @@ const FriendsPage: FC = () => {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      if (!userId) {
+        console.log('[FriendsPage] waiting for userId before loading friends');
+        return;
+      }
       setLoading(true);
       try {
+        console.log('[FriendsPage] loading friends for userId:', userId);
         const [frRes, rqRes] = await Promise.allSettled([
           FriendAPI.list(),
           FriendAPI.requests(),
         ]);
+        console.log('[FriendsPage] FriendAPI.list response', frRes);
         if (!mounted) return;
         if (frRes.status === "fulfilled") {
   const data = frRes.value.data?.data ?? frRes.value.data ?? [];
   const records = Array.isArray(data) ? data : [];
+  console.log('[FriendsPage] raw friend records', records);
 
   const enriched = await Promise.all(
     records.map(async (r: any) => {
@@ -263,8 +270,13 @@ console.log("OTHER USER:", otherUserId);
         const profile = profileRes.data?.data ?? profileRes.data;
         return {
           id: otherUserId,
-          username: profile?.username || profile?.["Email id"] || "Unknown",
-          email: profile?.["Email id"] || "",
+          username:
+            profile?.username ||
+            profile?.full_name ||
+            profile?.email ||
+            profile?.["Email id"] ||
+            "Unknown",
+          email: profile?.email || profile?.["Email id"] || "",
           avatarUrl: profile?.profile_picture_url,
           bio: profile?.bio,
         };
@@ -293,8 +305,13 @@ console.log("OTHER USER:", otherUserId);
           id: r.id,
           sender: {
             id: r.requesterId,
-            username: profile?.username || profile?.["Email id"] || r.requesterId,
-            email: profile?.["Email id"] || "",
+            username:
+              profile?.username ||
+              profile?.full_name ||
+              profile?.email ||
+              profile?.["Email id"] ||
+              r.requesterId,
+            email: profile?.email || profile?.["Email id"] || "",
             avatarUrl: profile?.profile_picture_url,
             bio: profile?.bio,
           },
@@ -325,7 +342,7 @@ console.log("OTHER USER:", otherUserId);
     };
     load();
     return () => { mounted = false; };
-  }, [fireToast]);
+  }, [fireToast, userId]);
 
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return; }
