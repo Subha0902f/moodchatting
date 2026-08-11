@@ -1,49 +1,25 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import "./theme.css";
+import { useAuth } from "../context/AuthContext";
+import { FriendAPI } from "../services/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface Friend {
-  id: number;
+  id: string;
   name: string;
-  emoji: string;
-  bg: number;
-  online: boolean;
-  since: string;
+  avatarUrl?: string;
+  online?: boolean;
+  since?: string;
 }
 
 interface Request {
-  id: number;
+  id: string;
+  senderId: string;
   name: string;
-  emoji: string;
-  bg: number;
-  mutual: number;
+  avatarUrl?: string;
+  mutual?: number;
 }
-
-// ─── Seed data ─────────────────────────────────────────────────────────────────
-
-const INIT_FRIENDS: Friend[] = [
-  { id: 1, name: "Aria Nakamura", emoji: "🌸", bg: 0, online: true,  since: "Jan 2024" },
-  { id: 2, name: "Dev Sharma",    emoji: "🔥", bg: 1, online: false, since: "Mar 2024" },
-  { id: 3, name: "Zoe Ellis",     emoji: "⚡", bg: 2, online: true,  since: "Apr 2024" },
-  { id: 4, name: "Kai Watanabe",  emoji: "🌊", bg: 3, online: false, since: "May 2024" },
-  { id: 5, name: "Luna Park",     emoji: "🎵", bg: 4, online: true,  since: "Jun 2024" },
-];
-
-const INIT_REQUESTS: Request[] = [
-  { id: 10, name: "Felix Bauer",  emoji: "🎮", bg: 5, mutual: 3 },
-  { id: 11, name: "Mila Russo",   emoji: "✨", bg: 6, mutual: 1 },
-  { id: 12, name: "Theo Laurent", emoji: "🌿", bg: 0, mutual: 5 },
-];
-
-const readStored = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) as T : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 // ─── Design tokens (CSS-in-JS) ─────────────────────────────────────────────────
 
@@ -88,24 +64,34 @@ interface AvatarProps {
   size?: number;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ emoji, bg = 0, online = false, size = 38 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: 11, flexShrink: 0,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: size * 0.47, position: "relative",
-    background: AV_BKGS[bg % AV_BKGS.length] as string,
-    border: `1.5px solid ${C.border2}`,
-  }}>
-    {emoji}
-    {online && (
-      <div style={{
-        position: "absolute", bottom: 2, right: 2,
-        width: 8, height: 8, borderRadius: "50%",
-        background: C.lime, border: `2px solid ${C.card}`,
-      }} />
-    )}
-  </div>
-);
+const Avatar: React.FC<AvatarProps> = ({ emoji, bg = 0, online = false, size = 38 }) => {
+  const name = (emoji as unknown as string) || "?";
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 11, flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: size * 0.47, position: "relative",
+      background: AV_BKGS[bg % AV_BKGS.length] as string,
+      border: `1.5px solid ${C.border2}`,
+    }}>
+      {initials}
+      {online && (
+        <div style={{
+          position: "absolute", bottom: 2, right: 2,
+          width: 8, height: 8, borderRadius: "50%",
+          background: C.lime, border: `2px solid ${C.card}`,
+        }} />
+      )}
+    </div>
+  );
+};
 
 // ─── Toast hook ────────────────────────────────────────────────────────────────
 
@@ -188,7 +174,7 @@ const Empty: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
 
 interface FriendsSectionProps {
   friends: Friend[];
-  onRemove: (id: number) => void;
+  onRemove: (id: string) => void;
 }
 
 const FriendsSection: React.FC<FriendsSectionProps> = ({ friends, onRemove }) => (
@@ -203,12 +189,12 @@ const FriendsSection: React.FC<FriendsSectionProps> = ({ friends, onRemove }) =>
           background: C.surface, border: `1px solid ${C.border}`,
           transition: "border-color .15s",
         }}>
-          <Avatar emoji={f.emoji} bg={f.bg} online={f.online} />
+          <Avatar emoji={f.name} bg={0} online={f.online} size={38} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {f.name}
             </div>
-            <div style={{ fontSize: 10.5, color: C.sub, marginTop: 1 }}>Since {f.since}</div>
+            <div style={{ fontSize: 10.5, color: C.sub, marginTop: 1 }}>{f.since ? `Since ${f.since}` : ""}</div>
           </div>
           <button
             onClick={() => onRemove(f.id)}
@@ -242,8 +228,8 @@ const FriendsSection: React.FC<FriendsSectionProps> = ({ friends, onRemove }) =>
 
 interface RequestsSectionProps {
   requests: Request[];
-  onAccept: (id: number) => void;
-  onReject: (id: number) => void;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
 }
 
 const RequestsSection: React.FC<RequestsSectionProps> = ({ requests, onAccept, onReject }) => (
@@ -257,12 +243,12 @@ const RequestsSection: React.FC<RequestsSectionProps> = ({ requests, onAccept, o
           padding: "10px", borderRadius: 12,
           background: C.surface, border: `1px solid ${C.border}`,
         }}>
-          <Avatar emoji={r.emoji} bg={r.bg} />
+          <Avatar emoji={r.name} bg={0} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {r.name}
             </div>
-            <div style={{ fontSize: 10.5, color: C.sub, marginTop: 1 }}>{r.mutual} mutual friends</div>
+            <div style={{ fontSize: 10.5, color: C.sub, marginTop: 1 }}>{r.mutual ?? 0} mutual friends</div>
           </div>
           <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
             <button
@@ -293,37 +279,76 @@ const RequestsSection: React.FC<RequestsSectionProps> = ({ requests, onAccept, o
 // ─── Root App ──────────────────────────────────────────────────────────────────
 
 const FriendsDashboard: React.FC = () => {
-  const [friends, setFriends] = useState<Friend[]>(() => readStored("moodchat.friends", INIT_FRIENDS));
-  const [requests, setRequests] = useState<Request[]>(() => readStored("moodchat.requests", INIT_REQUESTS));
+  const { user, session } = useAuth();
+  const userId = user?.id ?? null;
+
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [requests, setRequests] = useState<Request[]>([]);
   const [toastMsg, toastVis, fire] = useToast();
 
   useEffect(() => {
-    localStorage.setItem("moodchat.friends", JSON.stringify(friends));
-  }, [friends]);
+    if (!session?.access_token || !userId) return;
 
-  useEffect(() => {
-    localStorage.setItem("moodchat.requests", JSON.stringify(requests));
-  }, [requests]);
+    let mounted = true;
+    const load = async () => {
+      try {
+        const [frRes, rqRes] = await Promise.allSettled([FriendAPI.list(), FriendAPI.requests()]);
 
-  const removeFriend = (id: number) => {
+        if (!mounted) return;
+        if (frRes.status === 'fulfilled') {
+          const data = frRes.value.data?.data ?? frRes.value.data ?? [];
+          const records = Array.isArray(data) ? data : [];
+
+          const mapped = records.map((rec: any) => {
+            const otherUserId = rec.requesterId === userId ? rec.addresseeId : rec.requesterId;
+            const profile = rec.profile ?? {};
+            return {
+              id: otherUserId,
+              name: profile.full_name || profile.username || profile.email || otherUserId,
+              avatarUrl: profile.avatar_url ?? profile.profile_picture_url ?? undefined,
+              online: false,
+              since: undefined,
+            } as Friend;
+          });
+          setFriends(mapped);
+        }
+
+        if (rqRes.status === 'fulfilled') {
+          const data = rqRes.value.data?.data ?? rqRes.value.data ?? [];
+          const records = Array.isArray(data) ? data : [];
+          const mapped = records.map((r: any) => ({
+            id: r.id,
+            senderId: r.requesterId,
+            name: (r.sender && (r.sender.full_name || r.sender.username)) || r.requesterId,
+            avatarUrl: r.sender?.avatar_url ?? r.sender?.profile_picture_url ?? undefined,
+            mutual: 0,
+          } as Request));
+          setRequests(mapped);
+        }
+      } catch (err: any) {
+        console.error('[Dashboard] load error', err);
+        fire('Could not load friends');
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [session?.access_token, userId]);
+
+  const removeFriend = (id: string) => {
     const f = friends.find(x => x.id === id);
     setFriends(p => p.filter(x => x.id !== id));
     fire(`Removed ${f?.name}`);
   };
 
-  const acceptRequest = (id: number) => {
+  const acceptRequest = (id: string) => {
     const r = requests.find(x => x.id === id);
     if (!r) return;
     setRequests(p => p.filter(x => x.id !== id));
-    setFriends(p => [...p, {
-      id: r.id, name: r.name, emoji: r.emoji, bg: r.bg,
-      online: Math.random() > 0.5,
-      since: new Date().toLocaleDateString("en", { month: "short", year: "numeric" }),
-    }]);
+    setFriends(p => [...p, { id: r.senderId, name: r.name, avatarUrl: r.avatarUrl, online: false }]);
     fire(`${r.name} is now your friend 🎉`);
   };
 
-  const rejectRequest = (id: number) => {
+  const rejectRequest = (id: string) => {
     const r = requests.find(x => x.id === id);
     setRequests(p => p.filter(x => x.id !== id));
     fire(`Declined ${r?.name}'s request`);

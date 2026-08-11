@@ -23,25 +23,29 @@ const getInitials = (nameOrEmail: string) => {
   const parts = base.split(/[\s._-]+/).filter(Boolean);
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "MC";
 };
-console.log("getFriendsForUser CALLED");
+console.log("🔥 NEW VERSION OF USERSERVICE");
 export const getFriendsForUser = async (userId: string, limit = 50, offset = 0) => {
+  console.log("USER ID:", userId);
   try {
     const response = await supabase
-      .from("friends")
-      .select("*")
-.or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`)
-      
-      .range(offset, offset + limit - 1);
+  .from("friends")
+  .select("*")
+  .or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`)
+  .range(offset, offset + limit - 1);
 
-    if (response.error) throw new Error(response.error.message);
+console.log("USER ID:", userId);
+console.log("DATA:", response.data);
+console.log("ERROR:", response.error);
+
+if (response.error) throw new Error(response.error.message);
 
     // Transform the response to include friend details
 const friends = await Promise.all(
   (response.data || []).map(async (friendship: any) => {
-    const otherUserId =
-  friendship.requesterId === userId
-    ? friendship.addresseeId
-    : friendship.requesterId;
+  const otherUserId =
+  friendship.user_id === userId
+    ? friendship.friend_id
+    : friendship.user_id;
     console.log("USER:", userId);
 console.log("OTHER USER:", otherUserId);
 console.log("CURRENT USER:", userId);

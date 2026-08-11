@@ -161,11 +161,15 @@ export const getFriends = async (req: RequestWithUser, res: Response) => {
           return { ...friend, profile: null };
         }
 
-        const { data: profile, error } = await supabase
-          .from("users")
-          .select("id, username, full_name, email, avatar_url, profile_picture_url, bio")
-          .eq("id", otherUserId)
-          .maybeSingle();
+       const { data: profile, error } = await supabase
+  .from("users")
+  .select("*")
+  .eq("id", otherUserId)
+  .single();
+
+console.log("OTHER USER ID:", otherUserId);
+console.log("PROFILE:", profile);
+console.log("PROFILE ERROR:", error);
 
         console.log('[friendController.getFriends] profile lookup:', { otherUserId, profile, error: error?.message ?? null });
 

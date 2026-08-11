@@ -591,9 +591,14 @@ const ModesContainer: React.FC = () => {
       try {
         const res = await FriendAPI.list();
         const records = res.data?.data ?? [];
+        console.log("FRIEND RECORDS:", records);
+        console.log("API RESPONSE:", res.data);
+console.log("RECORDS:", records);
         setFriends(records.map((record: any) => {
           const otherUserId = record.requesterId === user?.id ? record.addresseeId : record.requesterId;
           const profile = record.profile ?? {};
+          console.log("RECORD:", record); 
+          console.log("PROFILE:", record.profile);
           console.log(records);
           return {
             id: otherUserId,

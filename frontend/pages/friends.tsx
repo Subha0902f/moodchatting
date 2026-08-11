@@ -2,11 +2,13 @@ import { useAuth } from "../context/AuthContext";
 // inside FriendsPage component:
 import { useState, useEffect, useCallback, useRef, FC } from "react";
 import { FriendAPI } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 interface FriendUser {
   id: string;
+  friendshipId?: string;
   username: string;
   email: string;
   avatarUrl?: string;
@@ -90,6 +92,7 @@ const Avatar: FC<{ user: FriendUser; size?: number }> = ({ user, size = 40 }) =>
 // ─── Friend Card ──────────────────────────────────────────────────────────────────
 
 const FriendCard: FC<{ user: FriendUser; onRemove: (id: string) => void }> = ({ user, onRemove }) => {
+  const navigate = useNavigate();
   const [hov, setHov] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -103,19 +106,44 @@ const FriendCard: FC<{ user: FriendUser; onRemove: (id: string) => void }> = ({ 
         boxShadow: hov ? "0 0 24px rgba(200,245,61,.05)" : "none",
       }}
     >
-      <Avatar user={user} size={44} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: C.text, fontFamily: "'Syne', sans-serif" }}>
-          {user.username}
-        </div>
-        <div style={{ fontSize: 12, color: C.sub, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {user.bio || user.email}
-        </div>
-      </div>
+  <Avatar user={user} size={44} />
+
+<div
+  onClick={() => navigate(`/profile/${user.id}`)}
+  style={{
+    flex: 1,
+    minWidth: 0,
+    cursor: "pointer",
+  }}
+>
+  <div style={{
+    fontWeight: 700,
+    fontSize: 14,
+    color: C.text,
+    fontFamily: "'Syne', sans-serif"
+  }}>
+    {user.username}
+  </div>
+
+  <div style={{
+    fontSize: 12,
+    color: C.sub,
+    marginTop: 2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  }}>
+    {user.bio || user.email}
+  </div>
+</div>
       {confirming ? (
         <div style={{ display: "flex", gap: 6 }}>
           <button
-            onClick={() => onRemove(user.id)}
+            onClick={() => {
+  if (user.friendshipId) {
+    onRemove(user.friendshipId);
+  }
+}}
             style={{ padding: "6px 12px", border: `1px solid ${C.redBorder}`, borderRadius: 8, background: C.redSoft, color: C.red, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 11 }}
           >Confirm</button>
           <button
@@ -224,6 +252,8 @@ const EmptyState: FC<{ icon: string; msg: string }> = ({ icon, msg }) => (
 const FriendsPage: FC = () => {
   const { user } = useAuth();
   const userId = user?.id ?? "";
+  console.log("USER:", user);
+console.log("USER ID:", userId);
   const [tab, setTab]                     = useState<TabKey>("friends");
   const [friends, setFriends]             = useState<FriendUser[]>([]);
   const [requests, setRequests]           = useState<FriendRequest[]>([]);
@@ -244,10 +274,12 @@ const FriendsPage: FC = () => {
       setLoading(true);
       try {
         console.log('[FriendsPage] loading friends for userId:', userId);
-        const [frRes, rqRes] = await Promise.allSettled([
-          FriendAPI.list(),
-          FriendAPI.requests(),
-        ]);
+        console.log("Calling FriendAPI.list()");
+
+const [frRes, rqRes] = await Promise.allSettled([
+  FriendAPI.list(),
+  FriendAPI.requests(),
+]);
         console.log('[FriendsPage] FriendAPI.list response', frRes);
         if (!mounted) return;
         if (frRes.status === "fulfilled") {
@@ -269,24 +301,26 @@ console.log("OTHER USER:", otherUserId);
         const profileRes = await FriendAPI.getUserProfile(otherUserId ?? r.addresseeId ?? r.friendId);
         const profile = profileRes.data?.data ?? profileRes.data;
         return {
-          id: otherUserId,
-          username:
-            profile?.username ||
-            profile?.full_name ||
-            profile?.email ||
-            profile?.["Email id"] ||
-            "Unknown",
-          email: profile?.email || profile?.["Email id"] || "",
-          avatarUrl: profile?.profile_picture_url,
-          bio: profile?.bio,
-        };
-      } catch {
-        return {
-          id: otherUserId,
-          username: "Unknown",
-          email: "",
-        };
-      }
+  id: otherUserId,
+  friendshipId: r.id,
+  username:
+    profile?.username ||
+    profile?.full_name ||
+    profile?.email ||
+    profile?.["Email id"] ||
+    "Unknown",
+  email: profile?.email || profile?.["Email id"] || "",
+  avatarUrl: profile?.profile_picture_url,
+  bio: profile?.bio,
+};
+  } catch {
+  return {
+    id: otherUserId,
+    friendshipId: r.id,
+    username: "Unknown",
+    email: "",
+  };
+}
     })
   );
   setFriends(enriched);
@@ -296,7 +330,7 @@ console.log("OTHER USER:", otherUserId);
   const requests = Array.isArray(data) ? data : [];
   
   // Fetch sender profiles for each request
-  const enriched = await Promise.all(
+  const enriched: FriendRequest[] = await Promise.all(
     requests.map(async (r: any) => {
       try {
         const profileRes = await FriendAPI.getUserProfile(r.requesterId);
@@ -386,7 +420,7 @@ console.log("OTHER USER:", otherUserId);
   const handleRemove = useCallback(async (id: string) => {
     try {
       await FriendAPI.remove(id);
-      setFriends(prev => prev.filter(f => f.id !== id));
+      setFriends(prev => prev.filter(f => f.friendshipId !== id));
       fireToast("Friend removed");
     } catch {
       fireToast("Could not remove friend", "error");

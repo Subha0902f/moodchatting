@@ -87,7 +87,7 @@ function App() {
             <Route element={<RequireAuth />}>
               <Route path="/friends" element={<Friends />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:userId" element={<Profile />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/modes" element={<Modes />} />
