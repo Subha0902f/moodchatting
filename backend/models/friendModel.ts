@@ -32,25 +32,30 @@ const FriendModel = {
   // ── Create a new friend request ──────────────────────────────────────────
 
   async create(payload: CreateFriendPayload): Promise<Friend> {
+    const insertPayload: Record<string, any> = {
+      status: payload.status || "pending",
+    };
+
+    insertPayload.user_id = payload.requesterId;
+    insertPayload.friend_id = payload.addresseeId;
+    insertPayload.requester_id = payload.requesterId;
+    insertPayload.addressee_id = payload.addresseeId;
+
     const { data, error } = await supabase
       .from("friends")
-      .insert([
-        {
-          user_id: payload.requesterId,
-          friend_id: payload.addresseeId,
-          status: payload.status || "pending",
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single();
 
     if (error) throw new Error(`FriendModel.create: ${error.message}`);
 
-    // Transform snake_case to camelCase
+    const rowUserId = data.user_id ?? data.requester_id ?? payload.requesterId;
+    const rowFriendId = data.friend_id ?? data.addressee_id ?? payload.addresseeId;
+
     return {
       id: data.id,
-      requesterId: data.user_id,
-      addresseeId: data.friend_id,
+      requesterId: rowUserId,
+      addresseeId: rowFriendId,
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -112,19 +117,41 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`)
-      .range(offset, offset + limit - 1);
+      .order("created_at", { ascending: false });
 
     if (error) throw new Error(`FriendModel.getFriends: ${error.message}`);
 
-    return ((data ?? []) as any[]).map((friend) => ({
-      id: friend.id,
-      requesterId: friend.user_id,
-      addresseeId: friend.friend_id,
-      status: friend.status,
-      createdAt: friend.created_at,
-      updatedAt: friend.updated_at,
-    })) as Friend[];
+    const rows = ((data ?? []) as any[])
+      .filter((friend) => {
+        const rowUserId = friend.user_id ?? friend.requester_id;
+        const rowFriendId = friend.friend_id ?? friend.addressee_id;
+        if (!rowUserId || !rowFriendId) return false;
+        if (friend.status !== "accepted") return false;
+        if (rowUserId === userId || rowFriendId === userId) return true;
+        return false;
+      })
+      .map((friend) => {
+        const rowUserId = friend.user_id ?? friend.requester_id;
+        const rowFriendId = friend.friend_id ?? friend.addressee_id;
+        return {
+          id: friend.id,
+          requesterId: rowUserId,
+          addresseeId: rowFriendId,
+          status: friend.status,
+          createdAt: friend.created_at,
+          updatedAt: friend.updated_at,
+        };
+      }) as Friend[];
+
+    const seen = new Set<string>();
+    const deduped = rows.filter((friend) => {
+      const otherUserId = friend.requesterId === userId ? friend.addresseeId : friend.requesterId;
+      if (!otherUserId || seen.has(otherUserId)) return false;
+      seen.add(otherUserId);
+      return true;
+    });
+
+    return deduped.slice(offset, offset + limit);
   },
 
   async getFriendsWithDetails(userId: string, limit = 50, offset = 0): Promise<(Friend & {
@@ -162,19 +189,36 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .eq("friend_id", userId)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
 
     if (error) throw new Error(`FriendModel.getPendingRequests: ${error.message}`);
 
-    return ((data ?? []) as any[]).map((friend) => ({
-      id: friend.id,
-      requesterId: friend.user_id,
-      addresseeId: friend.friend_id,
-      status: friend.status,
-      createdAt: friend.created_at,
-      updatedAt: friend.updated_at,
-    })) as Friend[];
+    const rows = ((data ?? []) as any[])
+      .filter((friend) => {
+        const rowUserId = friend.user_id ?? friend.requester_id;
+        const rowFriendId = friend.friend_id ?? friend.addressee_id;
+        if (!rowUserId || !rowFriendId) return false;
+        if (rowUserId === userId && rowFriendId !== userId) return false;
+        if (rowFriendId === userId && rowUserId !== userId) return true;
+        return false;
+      })
+      .map((friend) => ({
+        id: friend.id,
+        requesterId: friend.user_id ?? friend.requester_id,
+        addresseeId: friend.friend_id ?? friend.addressee_id,
+        status: friend.status,
+        createdAt: friend.created_at,
+        updatedAt: friend.updated_at,
+      })) as Friend[];
+
+    const seen = new Set<string>();
+    return rows.filter((friend) => {
+      const senderId = friend.requesterId;
+      if (!senderId || seen.has(senderId)) return false;
+      seen.add(senderId);
+      return true;
+    });
   },
 
   // ── Get sent friend requests by a user ────────────────────────────────────
@@ -183,19 +227,26 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("*")
-      .eq("user_id", userId)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
 
     if (error) throw new Error(`FriendModel.getSentRequests: ${error.message}`);
 
-    return ((data ?? []) as any[]).map((friend) => ({
-      id: friend.id,
-      requesterId: friend.user_id,
-      addresseeId: friend.friend_id,
-      status: friend.status,
-      createdAt: friend.created_at,
-      updatedAt: friend.updated_at,
-    })) as Friend[];
+    return ((data ?? []) as any[])
+      .filter((friend) => {
+        const rowUserId = friend.user_id ?? friend.requester_id;
+        const rowFriendId = friend.friend_id ?? friend.addressee_id;
+        if (!rowUserId || !rowFriendId) return false;
+        return rowUserId === userId && rowFriendId !== userId;
+      })
+      .map((friend) => ({
+        id: friend.id,
+        requesterId: friend.user_id ?? friend.requester_id,
+        addresseeId: friend.friend_id ?? friend.addressee_id,
+        status: friend.status,
+        createdAt: friend.created_at,
+        updatedAt: friend.updated_at,
+      })) as Friend[];
   },
 
   // ── Update a friend record ────────────────────────────────────────────────
@@ -227,6 +278,29 @@ const FriendModel = {
   // ── Accept a friend request ───────────────────────────────────────────────
 
   async acceptRequest(friendId: string): Promise<Friend> {
+    const friend = await this.getById(friendId);
+    if (!friend) {
+      throw new Error("FriendModel.acceptRequest: friend record not found");
+    }
+
+    const { data: relatedRows, error: relatedError } = await supabase
+      .from("friends")
+      .select("id")
+      .or(`and(user_id.eq.${friend.requesterId},friend_id.eq.${friend.addresseeId}),and(user_id.eq.${friend.addresseeId},friend_id.eq.${friend.requesterId}),and(requester_id.eq.${friend.requesterId},addressee_id.eq.${friend.addresseeId}),and(requester_id.eq.${friend.addresseeId},addressee_id.eq.${friend.requesterId})`)
+      .in("status", ["pending", "accepted"]);
+
+    if (relatedError) throw new Error(`FriendModel.acceptRequest: ${relatedError.message}`);
+
+    const idsToUpdate = (relatedRows ?? []).map((row: any) => row.id);
+    if (idsToUpdate.length > 0) {
+      const { error: updateError } = await supabase
+        .from("friends")
+        .update({ status: "accepted", updated_at: new Date().toISOString() })
+        .in("id", idsToUpdate);
+
+      if (updateError) throw new Error(`FriendModel.acceptRequest: ${updateError.message}`);
+    }
+
     return this.update(friendId, { status: "accepted" });
   },
 
@@ -255,14 +329,28 @@ const FriendModel = {
 
   // ── Delete a friend record ────────────────────────────────────────────────
 
-  async delete(friendId: string): Promise<void> {
-    const { error } = await supabase
-      .from("friends")
-      .delete()
-      .eq("id", friendId);
+  async delete(friendId: string): Promise<any[]> {
+  console.log("[FriendModel.delete] deleting friendship:", friendId);
 
-    if (error) throw new Error(`FriendModel.delete: ${error.message}`);
-  },
+  const { data, error } = await supabase
+    .from("friends")
+    .delete()
+    .eq("id", friendId)
+    .select();
+
+  console.log("[FriendModel.delete] deleted rows:", data);
+  console.log("[FriendModel.delete] error:", error);
+
+  if (error) {
+    throw new Error(`FriendModel.delete: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error("No friendship row was deleted");
+  }
+
+  return data as any[];
+},
 
   // ── Check if two users are friends ────────────────────────────────────────
 
@@ -277,17 +365,15 @@ const FriendModel = {
     const { data, error } = await supabase
       .from("friends")
       .select("id")
-        .eq("user_id", requesterId)
-        .eq("friend_id", addresseeId)
+      .or(`and(user_id.eq.${requesterId},friend_id.eq.${addresseeId}),and(user_id.eq.${addresseeId},friend_id.eq.${requesterId}),and(requester_id.eq.${requesterId},addressee_id.eq.${addresseeId}),and(requester_id.eq.${addresseeId},addressee_id.eq.${requesterId})`)
       .eq("status", "pending")
-      .single();
+      .limit(1);
 
     if (error) {
-      if (error.code === "PGRST116") return false;
       throw new Error(`FriendModel.hasPendingRequest: ${error.message}`);
     }
 
-    return data !== null;
+    return (data ?? []).length > 0;
   },
 };
 

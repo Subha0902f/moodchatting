@@ -1,8 +1,8 @@
 ﻿import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { UserAPI } from "../services/api";
-import { getProfile, getFriendsForUser } from "../services/userservice";
+import { UserAPI, FriendAPI } from "../services/api";
+import { getFriendsForUser } from "../services/userservice";
 
 const IconDots = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>;
 const IconCheck = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>;
@@ -396,13 +396,15 @@ export default function ProfilePage() {
     const loadProfileData = async () => {
       try {
         setProfileLoading(true);
-        const { data } = await getProfile(profileUserId);
-        if (mounted) setRemoteProfile(data ?? null);
+        // Use backend API to fetch the requested user's public profile
+        const res = await FriendAPI.getUserProfile(profileUserId);
+        const profile = res.data?.data ?? res.data ?? null;
+        if (mounted) setRemoteProfile(profile ?? null);
         if (!paramUserId || paramUserId === user?.id) {
           const friendsList = await getFriendsForUser(profileUserId);
           if (mounted) setFriends(friendsList);
         }
-      } catch {
+      } catch (err) {
         if (mounted) { setRemoteProfile(null); setFriends([]); }
       } finally {
         if (mounted) setProfileLoading(false);

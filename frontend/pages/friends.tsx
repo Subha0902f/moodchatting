@@ -70,25 +70,35 @@ const hashColor = (str?: string) => {
   for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
 };
+const Avatar: FC<{ user: FriendUser; size?: number }> = ({
+  user,
+  size = 44,
+}) => {
+  const initials = getInitials(user.username);
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────────
-
-const Avatar: FC<{ user: FriendUser; size?: number }> = ({ user, size = 40 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: Math.round(size * 0.3),
-    flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-    background: user.avatarUrl
-  ? "transparent"
-  : hashColor(user.username || "Unknown"),
-    border: "1.5px solid rgba(255,255,255,.06)", overflow: "hidden",
-  }}>
-    {user.avatarUrl
-      ? <img src={user.avatarUrl} alt={user.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      : <span style={{ fontSize: size * 0.34, fontWeight: 700, color: C.lime, fontFamily: "'Syne', sans-serif" }}>{getInitials(user.username)}</span>
-    }
-  </div>
-);
-
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: 12,
+        background: user.avatarUrl
+          ? `url(${user.avatarUrl}) center/cover`
+          : hashColor(user.username),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: C.lime,
+        fontWeight: 800,
+        fontSize: size * 0.32,
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      {!user.avatarUrl && initials}
+    </div>
+  );
+};
 // ─── Friend Card ──────────────────────────────────────────────────────────────────
 
 const FriendCard: FC<{ user: FriendUser; onRemove: (id: string) => void }> = ({ user, onRemove }) => {
@@ -264,6 +274,24 @@ console.log("USER ID:", userId);
   const [toast, fireToast]                = useToast();
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const dedupeById = <T extends { id: string }>(items: T[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
+  const dedupeByUserId = <T extends { sender: { id: string } }>(items: T[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.sender.id)) return false;
+      seen.add(item.sender.id);
+      return true;
+    });
+  };
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -323,50 +351,65 @@ console.log("OTHER USER:", otherUserId);
 }
     })
   );
-  setFriends(enriched);
+  setFriends(dedupeById(enriched));
 }
        if (rqRes.status === "fulfilled") {
   const data = rqRes.value.data?.data ?? rqRes.value.data ?? [];
-  const requests = Array.isArray(data) ? data : [];
+  const requests = Array.isArray(data)
+    ? data.filter((r: any) => {
+        const senderId = r.requesterId ?? r.requester_id ?? r.user_id ?? r.sender?.id;
+        const addresseeId = r.addresseeId ?? r.addressee_id ?? r.friend_id ?? r.sender?.id;
+        return senderId && senderId !== userId && addresseeId === userId;
+      })
+    : [];
   
   // Fetch sender profiles for each request
   const enriched: FriendRequest[] = await Promise.all(
     requests.map(async (r: any) => {
+      const senderId = r.requesterId ?? r.requester_id ?? r.user_id ?? r.sender?.id;
       try {
-        const profileRes = await FriendAPI.getUserProfile(r.requesterId);
+        const profileRes = await FriendAPI.getUserProfile(senderId);
         const profile = profileRes.data?.data ?? profileRes.data;
+        const fallbackUsername =
+          r.sender?.username ||
+          profile?.username ||
+          profile?.full_name ||
+          (profile?.email ? profile.email.split("@")[0] : "") ||
+          (r.sender?.email ? r.sender.email.split("@")[0] : "") ||
+          "User";
         return {
           id: r.id,
           sender: {
-            id: r.requesterId,
-            username:
-              profile?.username ||
-              profile?.full_name ||
-              profile?.email ||
-              profile?.["Email id"] ||
-              r.requesterId,
-            email: profile?.email || profile?.["Email id"] || "",
-            avatarUrl: profile?.profile_picture_url,
-            bio: profile?.bio,
+            id: senderId,
+            username: fallbackUsername,
+            email: r.sender?.email || profile?.email || profile?.["Email id"] || "",
+            avatarUrl: r.sender?.profile_picture_url || profile?.profile_picture_url,
+            bio: r.sender?.bio || profile?.bio,
           },
           status: r.status,
-          createdAt: r.createdAt,
+          createdAt: r.createdAt ?? r.created_at,
         };
       } catch {
+        const fallbackUsername =
+          r.sender?.username ||
+          (r.sender?.email ? r.sender.email.split("@")[0] : "") ||
+          "User";
         return {
           id: r.id,
           sender: {
-            id: r.requesterId,
-            username: r.requesterId,
-            email: "",
+            id: senderId,
+            username: fallbackUsername,
+            email: r.sender?.email || "",
+            avatarUrl: r.sender?.profile_picture_url,
+            bio: r.sender?.bio,
           },
           status: r.status,
-          createdAt: r.createdAt,
+          createdAt: r.createdAt ?? r.created_at,
         };
       }
     })
   );
-  setRequests(enriched);
+  setRequests(dedupeByUserId(enriched));
 }
       } catch {
         fireToast("Could not load friends", "error");
@@ -399,8 +442,19 @@ console.log("OTHER USER:", otherUserId);
     try {
       await FriendAPI.accept(id);
       const req = requests.find(r => r.id === id);
-      if (req) setFriends(prev => [...prev, req.sender]);
-      setRequests(prev => prev.filter(r => r.id !== id));
+      if (req) {
+        setFriends(prev => dedupeById([
+          ...prev,
+          {
+            id: req.sender.id,
+            username: req.sender.username,
+            email: req.sender.email,
+            avatarUrl: req.sender.avatarUrl,
+            bio: req.sender.bio,
+          },
+        ]));
+      }
+      setRequests(prev => dedupeByUserId(prev.filter(r => r.id !== id)));
       fireToast("Friend request accepted! 🎉");
     } catch {
       fireToast("Could not accept request", "error");
@@ -418,14 +472,20 @@ console.log("OTHER USER:", otherUserId);
   }, [fireToast]);
 
   const handleRemove = useCallback(async (id: string) => {
-    try {
-      await FriendAPI.remove(id);
-      setFriends(prev => prev.filter(f => f.friendshipId !== id));
-      fireToast("Friend removed");
-    } catch {
-      fireToast("Could not remove friend", "error");
-    }
-  }, [fireToast]);
+  console.log("REMOVE FRIENDSHIP ID:", id);
+
+  try {
+    const response = await FriendAPI.remove(id);
+
+    console.log("REMOVE API RESPONSE:", response.data);
+
+    setFriends(prev => prev.filter(f => f.friendshipId !== id));
+    fireToast("Friend removed");
+  } catch (error: any) {
+    console.error("REMOVE API ERROR:", error.response?.data || error.message);
+    fireToast("Could not remove friend", "error");
+  }
+}, [fireToast]);
 
   const handleAdd = useCallback(async (id: string) => {
     try {

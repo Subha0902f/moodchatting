@@ -41,15 +41,35 @@ export const getPendingRequests = async (req: RequestWithUser, res: Response) =>
 
     const requests = await FriendModel.getPendingRequests(userId);
 
+    const acceptedPairs = new Set<string>();
+    const { data: acceptedRows } = await supabase
+      .from("friends")
+      .select("user_id, friend_id")
+      .or(`and(user_id.eq.${userId},status.eq.accepted),and(friend_id.eq.${userId},status.eq.accepted)`);
+
+    (acceptedRows ?? []).forEach((row: any) => {
+      const pair = [row.user_id, row.friend_id].sort().join("::");
+      acceptedPairs.add(pair);
+    });
+
     const enriched = await Promise.all(
-      requests.map(async (r) => {
-        const { data: user } = await supabase
-          .from("users")
-          .select("id, username")
-          .eq("id", r.requesterId)
-          .single();
-        return { ...r, sender: user };
-      })
+      requests
+        .filter((r: any) => {
+          const senderId = r.requesterId ?? r.requester_id ?? r.user_id;
+          if (!senderId || senderId === userId) return false;
+          const pair = [senderId, userId].sort().join("::");
+          return !acceptedPairs.has(pair);
+        })
+        .map(async (r: any) => {
+          const senderId = r.requesterId ?? r.requester_id ?? r.user_id;
+          const { data: user } = await supabase
+            .from("users")
+            .select("id, username, email, bio, profile_picture_url")
+            .eq("id", senderId)
+            .maybeSingle();
+          const fallbackUsername = user?.username || (user?.email ? user.email.split("@")[0] : undefined) || senderId;
+          return { ...r, sender: user ?? { id: senderId, username: fallbackUsername, email: "" } };
+        })
     );
 
     res.status(200).json({ success: true, data: enriched });
@@ -191,16 +211,32 @@ console.log("PROFILE ERROR:", error);
 export const removeFriend = async (req: RequestWithUser, res: Response) => {
   try {
     const friendId = req.params.friendId as string;
+    console.log("🔥 REMOVE FRIEND ENDPOINT HIT");
+console.log("🔥 FRIENDSHIP ID RECEIVED:", friendId);
     const userId = req.user?.id;
     if (!userId) throw createHttpError(401, "Authentication required");
 
+    console.log("🔥 CURRENT USER ID:", userId);
     const friendRecord = await FriendModel.getById(friendId);
+    console.log("🔥 FRIEND RECORD:", friendRecord);
+
     if (!friendRecord) throw createHttpError(404, "Friend record not found");
     if (friendRecord.requesterId !== userId && friendRecord.addresseeId !== userId) {
       throw createHttpError(403, "Not authorized to remove this friendship");
     }
 
-    await FriendModel.delete(friendId);
+    try {
+      const deleted = await FriendModel.delete(friendId);
+      console.log("🔥 DELETE RESULT:", deleted);
+      if (!deleted || deleted.length === 0) {
+        console.log("🔥 DELETE ERROR: no rows deleted for friendship id", friendId);
+        throw createHttpError(500, "No friendship row was deleted");
+      }
+    } catch (err: any) {
+      console.log("🔥 DELETE ERROR:", err?.message || err);
+      throw err;
+    }
+
     res.status(200).json({ success: true, message: "Friend removed" });
   } catch (error: any) {
     sendRouteError(res, error);

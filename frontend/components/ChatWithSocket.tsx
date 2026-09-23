@@ -239,6 +239,18 @@ export const ChatWithSocket: React.FC<ChatWithSocketProps> = ({
       timestamp: new Date().toISOString(),
     };
 
+    // Optimistically add the message locally so sender sees it immediately
+    const optimisticMessage: Message = {
+      id: `local-${Date.now()}`,
+      message: text,
+      timestamp: payload.timestamp!,
+      isOwn: true,
+      senderName: userName,
+      status: 'sent',
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    // Send via socket
     sendMessage(payload);
     setInputValue('');
     stopTyping(chatId);
