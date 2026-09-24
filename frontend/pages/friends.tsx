@@ -314,6 +314,8 @@ const [frRes, rqRes] = await Promise.allSettled([
   const data = frRes.value.data?.data ?? frRes.value.data ?? [];
   const records = Array.isArray(data) ? data : [];
   console.log('[FriendsPage] raw friend records', records);
+console.log("🔥 REACHED ENRICHMENT. RECORD COUNT:", records.length);
+console.log("🔥 RECORDS:", records);
 
   const enriched = await Promise.all(
     records.map(async (r: any) => {
@@ -326,7 +328,9 @@ console.log("REQUESTER:", r.requesterId);
 console.log("ADDRESSEE:", r.addresseeId);
 console.log("OTHER USER:", otherUserId);
       try {
+        console.log("🔥 ABOUT TO FETCH PROFILE:", otherUserId);
         const profileRes = await FriendAPI.getUserProfile(otherUserId ?? r.addresseeId ?? r.friendId);
+        console.log("🔥 PROFILE API RESPONSE:", profileRes.data);
         const profile = profileRes.data?.data ?? profileRes.data;
         return {
   id: otherUserId,
@@ -351,6 +355,7 @@ console.log("OTHER USER:", otherUserId);
 }
     })
   );
+  console.log("🔥 FINAL FRIENDS:", enriched);
   setFriends(dedupeById(enriched));
 }
        if (rqRes.status === "fulfilled") {
