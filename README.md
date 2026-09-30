@@ -1,84 +1,57 @@
 # MoodChatting
 
-MoodChatting is a full-stack social and mood-aware chat application built to combine messaging, personal journaling, reminders, community channels, and emotional tracking in a single platform.
+MoodChatting is a full-stack social and mood-aware chat application. It brings together messaging, friends, community channels, journaling, reminders, blog posts, and mood modes.
 
-## Project status
+## Current status
 
-This project is in active development and has already reached a solid foundation stage. The app has a working backend structure, frontend pages, database integration, and several core features connected together.
+The project has a working application structure with a React frontend, an Express API, Supabase integration, and Socket.IO support. The main feature areas are represented in the frontend and backend, but testing, edge-case handling, and deployment hardening are still in progress. Feature presence should not be taken as end-to-end or production verification.
 
-Current overall status:
-- Backend foundation: complete
-- Frontend app shell: complete
-- Authentication and protected routes: implemented
-- User management and profiles: implemented
-- Friend system: implemented in structure and flow
-- Chat and real-time messaging: implemented
-- Channels: implemented
-- Notes and blog features: implemented
-- Mood/mode features: implemented
-- Reminder system: implemented
-- UI polish and stabilization: still in progress
-- End-to-end testing and deployment readiness: planned
+| Area | Current state |
+| --- | --- |
+| Backend API and middleware | Implemented; needs continued validation |
+| Frontend routes and app shell | Implemented |
+| Authentication and protected pages | Implemented; needs end-to-end testing |
+| Users, profiles, friends, and chat | Implemented in the application structure |
+| Channels, blog, notes, and mood modes | Implemented in the application structure |
+| Reminders | CRUD and chatbot-related API documented |
+| Real-time communication | Socket.IO server and client integration present |
+| Automated tests | Not configured yet; `npm test` is a placeholder |
+| UI polish and deployment readiness | In progress |
 
-## What we have done so far
+## Features
 
-### Core application foundation
-- Set up a full Express + TypeScript backend with modular controllers, routes, middleware, and utilities
-- Configured a Vite + React + TypeScript frontend app structure
-- Added environment configuration and Supabase integration
-- Set up middleware for CORS, Helmet security headers, rate limiting, validation, and error handling
-- Implemented Socket.IO infrastructure for real-time communication
+- Account authentication and protected application routes
+- User profiles and friend-related workflows
+- Chat and message APIs with Socket.IO support
+- Community channels
+- Blog posts and personal notes
+- Mood/mode selection
+- Reminders with documented categories, priorities, recurrence, filtering, and chatbot endpoints
+- Dashboard and settings pages
 
-### Authentication and user flow
-- Built auth routes and protected middleware
-- Added user account-related endpoints and access checks
-- Integrated JWT-based request protection for secured routes
-- Added role-aware access patterns for protected API endpoints
+## Technology
 
-### Social and messaging features
-- Built user/friend relationship logic and friend routes
-- Implemented chat routes and message handling
-- Added real-time socket communication for messaging interactions
-- Included support for channels/community-style communication
+- Frontend: React 19, TypeScript, Vite, React Router
+- Backend: Node.js, Express 5, TypeScript
+- Real-time communication: Socket.IO
+- Database and auth integration: Supabase
+- Supporting libraries: Axios, Zustand, Helmet, and express-rate-limit
 
-### Content and productivity features
-- Added blog-related routes and controllers
-- Added note-taking routes for personal journaling
-- Implemented mood/mode management routes and related frontend pages
-- Added a reminder system with categories, priorities, recurring rules, filtering, and summary stats
-- Built dashboard-style sections to support overview and workflow tracking
+## Project layout
 
-### Security and quality work
-- Added API protection, validation, and structured error responses
-- Used typed request patterns for authenticated users
-- Kept backend structure organized around controllers, models, and routes
-- Added project documentation for reminders, middleware, and socket usage
-
-## Tech stack
-
-- Frontend: React, TypeScript, Vite
-- Backend: Node.js, Express, TypeScript
-- Real-time layer: Socket.IO
-- Database: Supabase / PostgreSQL
-- Authentication: JWT and Supabase-based patterns
-- Styling: custom frontend styling and component-based UI
-
-## Project structure
-
-```bash
+```text
 moodchatting/
 ├── backend/
 │   ├── config/
 │   ├── controllers/
 │   ├── middleware/
+│   ├── migrations/
 │   ├── models/
 │   ├── routes/
 │   ├── sockets/
 │   ├── types/
 │   ├── utils/
-│   ├── server.ts
-│   ├── MIDDLEWARE_GUIDE.md
-│   └── REMINDER_CHATBOT_GUIDE.md
+│   └── server.ts
 ├── frontend/
 │   ├── app.tsx/
 │   ├── components/
@@ -86,40 +59,18 @@ moodchatting/
 │   ├── layouts/
 │   ├── pages/
 │   ├── services/
-│   ├── socket/
-│   └── types/
+│   └── socket/
 ├── package.json
-├── README.md
-├── tsconfig.json
-├── vite_index.html
-└── .env.example (if used in your environment)
+├── index.html
+└── tsconfig.json
 ```
-
-## Current feature status
-
-| Area | Status |
-| --- | --- |
-| Backend setup | ✅ Complete |
-| Frontend app setup | ✅ Complete |
-| Auth flow | ✅ Implemented |
-| Users and profiles | ✅ Implemented |
-| Friends system | ✅ Implemented |
-| Chat and messaging | ✅ Implemented |
-| Channels | ✅ Implemented |
-| Blog | ✅ Implemented |
-| Notes | ✅ Implemented |
-| Mood / mode system | ✅ Implemented |
-| Reminder system | ✅ Implemented |
-| UI polishing | 🔧 In progress |
-| Testing | ⏳ Planned |
-| Deployment hardening | ⏳ Planned |
 
 ## Getting started
 
 ### Prerequisites
-- Node.js 18+
-- npm
-- A Supabase project and valid environment variables
+
+- Node.js and npm
+- A Supabase project
 
 ### Install dependencies
 
@@ -127,66 +78,66 @@ moodchatting/
 npm install
 ```
 
-### Environment variables
+### Configure the backend
 
-Create a `.env` file in the project root with values similar to:
+Create a `.env` file in the project root. The backend currently requires all four Supabase/JWT values below:
 
 ```env
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
-PORT=3000
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-JWT_SECRET=your_jwt_secret
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+JWT_SECRET=use_a_long_random_secret
 ```
 
-### Run the app
+Optional settings:
+
+```env
+PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+JWT_EXPIRES_IN=7d
+```
+
+Keep service-role credentials and JWT secrets private. Do not commit `.env` files.
+
+### Start the application
+
+Run the backend from the project root:
 
 ```bash
 npm run dev
 ```
 
-This starts the backend development server for the app.
-
-### Type check
+In a second terminal, start the Vite frontend:
 
 ```bash
-npm run typecheck
+npm run dev:frontend
 ```
 
-## Key documentation
+The frontend is served by Vite, normally at `http://localhost:5173`. The backend defaults to port `5000`; its `/health` endpoint can be used to check that it is running. The backend checks its Supabase connection during startup.
 
-- [backend/REMINDER_CHATBOT_GUIDE.md](backend/REMINDER_CHATBOT_GUIDE.md) - Reminder system documentation
-- [backend/MIDDLEWARE_GUIDE.md](backend/MIDDLEWARE_GUIDE.md) - Middleware and backend request flow
-- [frontend/socket/SOCKET_GUIDE.md](frontend/socket/SOCKET_GUIDE.md) - Socket.IO usage and real-time communication
+### Available scripts
 
-## Roadmap
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Run the backend in watch mode |
+| `npm run dev:backend` | Alias for the backend development command |
+| `npm run dev:frontend` | Run the Vite frontend |
+| `npm start` | Start the backend without watch mode |
+| `npm run typecheck` | Run TypeScript without emitting files |
+| `npm test` | Placeholder; automated tests are not configured |
 
-### Phase 1: Foundation
-- ✅ Project structure and architecture
-- ✅ Backend and frontend setup
-- ✅ Database and config wiring
-- ✅ Secure API foundation
+## Documentation
 
-### Phase 2: Feature completion
-- ✅ Authentication and users
-- ✅ Friends, chat, channels
-- ✅ Notes, blog, mood, and reminders
-- ✅ Real-time communication
+- [backend/REMINDER_CHATBOT_GUIDE.md](backend/REMINDER_CHATBOT_GUIDE.md): Reminder API and chatbot behavior
+- [backend/MIDDLEWARE_GUIDE.md](backend/MIDDLEWARE_GUIDE.md): Backend middleware and request flow
+- [frontend/socket/SOCKET_GUIDE.md](frontend/socket/SOCKET_GUIDE.md): Socket.IO client usage
 
-### Phase 3: Production readiness
-- 🔧 Fixing edge cases and validation
-- 🔧 UI consistency and polish
-- 🔧 Testing and regression checks
-- 🔧 Deployment readiness and final cleanup
+## Next steps
 
-## Notes
+- Add automated tests for key API and user flows
+- Validate authentication, messaging, and reminder workflows end to end
+- Continue UI consistency and edge-case work
+- Review environment and deployment configuration before production use
 
-MoodChatting is no longer just an idea or a blank project structure. It already includes the major building blocks for a meaningful social and mood-aware app. The remaining work is focused on refinement, stabilization, and final hardening rather than rebuilding the foundation from scratch.
-
-The project is in a healthy intermediate stage: the core features exist, the architecture is in place, and the next steps are about making the experience smoother, more reliable, and ready for broader use.
-
-
----
-
-**Note**: This project is under active development. Some features may be incomplete or subject to change.
+MoodChatting is under active development. APIs and features may change as implementation and validation continue.
